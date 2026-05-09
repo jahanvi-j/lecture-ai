@@ -1,0 +1,602 @@
+"use client";
+
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface OutlineItem {
+  title: string;
+  summary_1_sentence: string;
+  start_time: number;
+  segment_index: number;
+}
+
+interface Summaries {
+  short: string;
+  medium: string;
+  full: string;
+}
+
+interface KeyConcept {
+  term: string;
+  definition: string;
+  start_time: number;
+}
+
+interface Flashcard {
+  front: string;
+  back: string;
+  timestamp: number;
+  segment_index: number;
+  difficulty: "easy" | "medium" | "hard";
+}
+
+interface SearchIndexEntry {
+  segment_index: number;
+  start_time: number;
+  end_time: number;
+  text: string;
+  embedding: number[];
+}
+
+interface SearchResult {
+  segment_index: number;
+  start_time: number;
+  end_time: number;
+  text: string;
+  score: number;
+}
+
+interface LectureResult {
+  video_id: string;
+  duration_seconds: number;
+  segment_count: number;
+  outline: OutlineItem[];
+  summaries: Summaries;
+  key_concepts: KeyConcept[];
+  flashcards: Flashcard[];
+  search_index: SearchIndexEntry[];
+  status: string;
+}
+
+interface ProgressEvent {
+  event: string;
+  agent?: string;
+  message?: string;
+  error?: string;
+  done?: boolean;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatTime(seconds: number): string {
+  const s = Math.floor(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+function TimestampPill({
+  seconds,
+  onSeek,
+}: {
+  seconds: number;
+  onSeek: (s: number) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSeek(seconds)}
+      className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-600 text-white text-xs font-mono font-medium hover:bg-indigo-500 transition-colors cursor-pointer shrink-0"
+    >
+      {formatTime(seconds)}
+    </button>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function ProgressFeed({ events }: { events: ProgressEvent[] }) {
+  return (
+    <div className="font-mono text-sm space-y-2">
+      {events.map((ev, i) => {
+        const isDone = ev.event === "agent_done";
+        return (
+          <div key={i} className="fade-in flex items-start gap-3">
+            <span
+              className={`mt-0.5 text-base leading-none ${
+                isDone ? "text-green-400" : "text-indigo-400 dot-pulse"
+              }`}
+            >
+              ●
+            </span>
+            <span className={isDone ? "text-zinc-300" : "text-zinc-400"}>
+              <span className="text-white font-semibold">{ev.agent}</span>
+              {ev.message ? ` — ${ev.message}` : ""}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OutlineTab({
+  outline,
+  onSeek,
+}: {
+  outline: OutlineItem[];
+  onSeek: (s: number) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {outline.map((item, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-3 p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800 hover:border-zinc-700 transition-colors"
+        >
+          <TimestampPill seconds={item.start_time} onSeek={onSeek} />
+          <div className="min-w-0">
+            <p className="text-white font-medium text-sm leading-snug">
+              {item.title}
+            </p>
+            <p className="text-zinc-500 text-xs mt-1 leading-relaxed">
+              {item.summary_1_sentence}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SummariesTab({ summaries }: { summaries: Summaries }) {
+  type Depth = "short" | "medium" | "full";
+  const [depth, setDepth] = useState<Depth>("short");
+
+  const labels: { key: Depth; label: string }[] = [
+    { key: "short", label: "90 sec" },
+    { key: "medium", label: "5 min" },
+    { key: "full", label: "Full Notes" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {labels.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setDepth(key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              depth === key
+                ? "bg-indigo-600 text-white"
+                : "bg-[#1a1a1a] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800">
+        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+          {summaries[depth]}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FlashcardsTab({
+  flashcards,
+  onSeek,
+}: {
+  flashcards: Flashcard[];
+  onSeek: (s: number) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+
+  const card = flashcards[index];
+  if (!card) return null;
+
+  const difficultyColor = {
+    easy: "bg-emerald-900 text-emerald-300",
+    medium: "bg-amber-900 text-amber-300",
+    hard: "bg-red-900 text-red-300",
+  };
+
+  function go(dir: 1 | -1) {
+    setFlipped(false);
+    setTimeout(() => setIndex((i) => Math.max(0, Math.min(flashcards.length - 1, i + dir))), 150);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-zinc-500 text-sm">
+        <span>
+          Card {index + 1} of {flashcards.length}
+        </span>
+        <span className="text-xs text-zinc-600">Click card to flip</span>
+      </div>
+
+      <div className="flip-card w-full" style={{ height: "260px" }}>
+        <div
+          className={`flip-card-inner w-full h-full cursor-pointer ${
+            flipped ? "flipped" : ""
+          }`}
+          onClick={() => setFlipped((f) => !f)}
+        >
+          {/* Front */}
+          <div className="flip-card-front p-6 rounded-xl bg-[#1a1a1a] border border-zinc-800 flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-white text-base font-medium leading-relaxed">
+                {card.front}
+              </p>
+              <span
+                className={`shrink-0 text-xs px-2 py-1 rounded-md font-medium capitalize ${
+                  difficultyColor[card.difficulty] ?? difficultyColor.medium
+                }`}
+              >
+                {card.difficulty}
+              </span>
+            </div>
+            <p className="text-zinc-600 text-xs mt-4">Tap to reveal answer →</p>
+          </div>
+
+          {/* Back */}
+          <div className="flip-card-back p-6 rounded-xl bg-[#1e1a2e] border border-indigo-900 flex flex-col justify-between">
+            <p className="text-zinc-200 text-sm leading-relaxed">{card.back}</p>
+            <div className="flex items-center gap-2 mt-4">
+              <span className="text-zinc-600 text-xs">From:</span>
+              <TimestampPill seconds={card.timestamp} onSeek={onSeek} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => go(-1)}
+          disabled={index === 0}
+          className="flex-1 py-3 rounded-xl bg-[#1a1a1a] border border-zinc-800 text-zinc-400 text-sm font-medium disabled:opacity-30 hover:border-zinc-600 transition-colors"
+        >
+          ← Previous
+        </button>
+        <button
+          onClick={() => go(1)}
+          disabled={index === flashcards.length - 1}
+          className="flex-1 py-3 rounded-xl bg-[#1a1a1a] border border-zinc-800 text-zinc-400 text-sm font-medium disabled:opacity-30 hover:border-zinc-600 transition-colors"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SearchTab({
+  searchIndex,
+  onSeek,
+}: {
+  searchIndex: SearchIndexEntry[];
+  onSeek: (s: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setLoading(true);
+    setSearched(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, search_index: searchIndex }),
+      });
+      const data = await res.json();
+      setResults(data.results ?? []);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ask anything about this lecture..."
+          className="flex-1 rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-4 py-3 text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={loading || !query.trim()}
+          className="px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 disabled:opacity-40 transition-colors"
+        >
+          {loading ? "…" : "Search"}
+        </button>
+      </form>
+
+      {loading && (
+        <div className="text-zinc-500 text-sm text-center py-6">
+          Searching...
+        </div>
+      )}
+
+      {!loading && searched && results.length === 0 && (
+        <div className="text-zinc-500 text-sm text-center py-6">
+          No results found.
+        </div>
+      )}
+
+      {!loading && results.length > 0 && (
+        <div className="space-y-3">
+          {results.map((r, i) => (
+            <div
+              key={i}
+              className="p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800 space-y-2"
+            >
+              <div className="flex items-center gap-2">
+                <TimestampPill seconds={r.start_time} onSeek={onSeek} />
+                <span className="text-zinc-500 text-xs">
+                  Score: {(r.score * 100).toFixed(1)}%
+                </span>
+              </div>
+              <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">
+                {r.text}
+              </p>
+              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, r.score * 100).toFixed(1)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Results Layout ──────────────────────────────────────────────────────
+
+type Tab = "outline" | "summaries" | "flashcards" | "search";
+
+function ResultsView({
+  result,
+}: {
+  result: LectureResult;
+}) {
+  const [tab, setTab] = useState<Tab>("outline");
+  const playerRef = useRef<HTMLIFrameElement>(null);
+
+  function seekTo(seconds: number) {
+    playerRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
+      "*"
+    );
+  }
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "outline", label: "Outline" },
+    { key: "summaries", label: "Summaries" },
+    { key: "flashcards", label: "Flashcards" },
+    { key: "search", label: "Search" },
+  ];
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#0f0f0f]">
+      {/* Left — video + concepts */}
+      <div className="w-[40%] flex flex-col overflow-y-auto border-r border-zinc-900 p-5 gap-5">
+        <div className="rounded-xl overflow-hidden bg-black aspect-video">
+          <iframe
+            ref={playerRef}
+            id="yt-player"
+            src={`https://www.youtube.com/embed/${result.video_id}?enablejsapi=1`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+
+        <div>
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">
+            Key Concepts
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {result.key_concepts.map((c, i) => (
+              <button
+                key={i}
+                onClick={() => seekTo(c.start_time)}
+                title={c.definition}
+                className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-zinc-800 text-zinc-300 text-xs hover:border-indigo-700 hover:text-indigo-300 transition-colors text-left"
+              >
+                {c.term}
+                <span className="ml-1.5 text-zinc-600 font-mono">
+                  {formatTime(c.start_time)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-zinc-700 text-xs font-mono">
+          {result.segment_count} segments · {formatTime(result.duration_seconds)}
+        </div>
+      </div>
+
+      {/* Right — tabs */}
+      <div className="w-[60%] flex flex-col overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-zinc-900 shrink-0">
+          {tabs.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-5 py-4 text-sm font-medium transition-colors relative ${
+                tab === key
+                  ? "text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {label}
+              {tab === key && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {tab === "outline" && (
+            <OutlineTab outline={result.outline} onSeek={seekTo} />
+          )}
+          {tab === "summaries" && (
+            <SummariesTab summaries={result.summaries} />
+          )}
+          {tab === "flashcards" && (
+            <FlashcardsTab flashcards={result.flashcards} onSeek={seekTo} />
+          )}
+          {tab === "search" && (
+            <SearchTab searchIndex={result.search_index} onSeek={seekTo} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+function StudyContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const videoUrl = searchParams.get("url") ?? "";
+
+  const [events, setEvents] = useState<ProgressEvent[]>([]);
+  const [result, setResult] = useState<LectureResult | null>(null);
+  const [error, setError] = useState("");
+  const feedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!videoUrl) {
+      setError("No URL provided.");
+      return;
+    }
+
+    const es = new EventSource(
+      `http://localhost:8000/api/stream?url=${encodeURIComponent(videoUrl)}`
+    );
+
+    es.onmessage = (e) => {
+      const parsed = JSON.parse(e.data) as {
+        event: string;
+        agent?: string;
+        message?: string;
+        error?: string;
+        data?: LectureResult;
+      };
+
+      if (parsed.event === "complete") {
+        setResult(parsed.data!);
+        es.close();
+      } else if (parsed.event === "error") {
+        setError(parsed.message ?? "An error occurred.");
+        es.close();
+      } else {
+        setEvents((prev) => [
+          ...prev,
+          {
+            event: parsed.event,
+            agent: parsed.agent,
+            message: parsed.message,
+            done: parsed.event === "agent_done",
+          },
+        ]);
+      }
+    };
+
+    es.onerror = () => {
+      setError("Cannot connect to backend. Is the server running on port 8000?");
+      es.close();
+    };
+
+    return () => es.close();
+  }, [videoUrl]);
+
+  // Auto-scroll feed
+  useEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
+  }, [events]);
+
+  if (result) return <ResultsView result={result} />;
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center px-4">
+        <div className="w-full max-w-md p-6 rounded-2xl bg-[#1a1a1a] border border-red-900 space-y-4">
+          <p className="text-red-400 font-semibold">Error</p>
+          <p className="text-zinc-400 text-sm">{error}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="w-full py-3 rounded-xl bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center px-4">
+      <div className="w-full max-w-lg space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-semibold text-white">
+            Analyzing your lecture...
+          </h1>
+          <p className="text-zinc-500 text-sm font-mono truncate">{videoUrl}</p>
+        </div>
+
+        <div
+          ref={feedRef}
+          className="p-5 rounded-2xl bg-[#1a1a1a] border border-zinc-800 max-h-72 overflow-y-auto space-y-2"
+        >
+          {events.length === 0 ? (
+            <p className="text-zinc-600 text-sm font-mono">Connecting...</p>
+          ) : (
+            <ProgressFeed events={events} />
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function StudyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
+          <p className="text-zinc-600 font-mono text-sm">Loading...</p>
+        </main>
+      }
+    >
+      <StudyContent />
+    </Suspense>
+  );
+}
