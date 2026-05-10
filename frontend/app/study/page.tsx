@@ -295,7 +295,7 @@ function SearchTab({
     setLoading(true);
     setSearched(true);
     try {
-      const res = await fetch("http://localhost:8000/api/search", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, search_index: searchIndex }),
@@ -497,7 +497,7 @@ function StudyContent() {
     }
 
     const es = new EventSource(
-      `http://localhost:8000/api/stream?url=${encodeURIComponent(videoUrl)}`
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stream?url=${encodeURIComponent(videoUrl)}`
     );
 
     es.onmessage = (e) => {
