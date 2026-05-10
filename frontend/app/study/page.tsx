@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { translateContent } from "../../lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -373,13 +374,56 @@ function SearchTab({
 
 type Tab = "outline" | "summaries" | "flashcards" | "search";
 
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "hi", label: "Hindi" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+];
+
 function ResultsView({
   result,
 }: {
   result: LectureResult;
 }) {
   const [tab, setTab] = useState<Tab>("outline");
+  const [language, setLanguage] = useState("en");
+  const [translating, setTranslating] = useState(false);
+  const [displayResult, setDisplayResult] = useState<LectureResult>(result);
+  const originalRef = useRef<LectureResult>(result);
   const playerRef = useRef<HTMLIFrameElement>(null);
+
+  async function handleLanguageChange(lang: string) {
+    setLanguage(lang);
+    if (lang === "en") {
+      setDisplayResult(originalRef.current);
+      return;
+    }
+    setTranslating(true);
+    try {
+      const content = {
+        outline: originalRef.current.outline,
+        summaries: originalRef.current.summaries,
+        flashcards: originalRef.current.flashcards,
+        key_concepts: originalRef.current.key_concepts,
+      };
+      const translated = await translateContent(content, lang);
+      setDisplayResult((prev) => ({
+        ...prev,
+        outline: translated.outline ?? prev.outline,
+        summaries: translated.summaries ?? prev.summaries,
+        flashcards: translated.flashcards ?? prev.flashcards,
+        key_concepts: translated.key_concepts ?? prev.key_concepts,
+      }));
+    } catch {
+      setLanguage("en");
+      setDisplayResult(originalRef.current);
+    } finally {
+      setTranslating(false);
+    }
+  }
 
   function seekTo(seconds: number) {
     playerRef.current?.contentWindow?.postMessage(
@@ -415,7 +459,7 @@ function ResultsView({
             Key Concepts
           </p>
           <div className="flex flex-wrap gap-2">
-            {result.key_concepts.map((c, i) => (
+            {displayResult.key_concepts.map((c, i) => (
               <button
                 key={i}
                 onClick={() => seekTo(c.start_time)}
@@ -439,35 +483,55 @@ function ResultsView({
       {/* Right — tabs */}
       <div className="w-[60%] flex flex-col overflow-hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-zinc-900 shrink-0">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-5 py-4 text-sm font-medium transition-colors relative ${
-                tab === key
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
+        <div className="flex items-center border-b border-zinc-900 shrink-0">
+          <div className="flex">
+            {tabs.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`px-5 py-4 text-sm font-medium transition-colors relative ${
+                  tab === key
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {label}
+                {tab === key && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto pr-4 flex items-center gap-2">
+            {translating && (
+              <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            )}
+            <select
+              value={language}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              disabled={translating}
+              className="bg-[#1a1a1a] text-white text-xs border border-zinc-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50 transition-colors cursor-pointer"
             >
-              {label}
-              {tab === key && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t" />
-              )}
-            </button>
-          ))}
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto p-6">
           {tab === "outline" && (
-            <OutlineTab outline={result.outline} onSeek={seekTo} />
+            <OutlineTab outline={displayResult.outline} onSeek={seekTo} />
           )}
           {tab === "summaries" && (
-            <SummariesTab summaries={result.summaries} />
+            <SummariesTab summaries={displayResult.summaries} />
           )}
           {tab === "flashcards" && (
-            <FlashcardsTab flashcards={result.flashcards} onSeek={seekTo} />
+            <FlashcardsTab flashcards={displayResult.flashcards} onSeek={seekTo} />
           )}
           {tab === "search" && (
             <SearchTab searchIndex={result.search_index} onSeek={seekTo} />
@@ -529,7 +593,7 @@ function StudyContent() {
     };
 
     es.onerror = () => {
-      setError("Cannot connect to backend. Is the server running on port 8000?");
+      setError("Cannot connect to backend. Is the server running?");
       es.close();
     };
 
