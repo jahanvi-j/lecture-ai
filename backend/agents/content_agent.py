@@ -43,14 +43,15 @@ def _parse_json_safe(raw: str, prompt: str, retries: int = 1) -> dict | list | N
 
 def _call_outline(segments: list[dict]) -> list:
     segment_lines = "\n".join(
-        f"[segment {s['segment_index']} | {format_time(s['start_time'])}] {s['text']}"
+        f"[segment {s['segment_index']} | start_time={s['start_time']:.1f}s] {s['text']}"
         for s in segments
     )
     prompt = (
         f"{SYSTEM_PREAMBLE}\n\n"
         "Given these lecture transcript segments, produce a structured outline.\n"
         "Return a JSON array where each element corresponds to one segment:\n"
-        '  {"title": string, "summary_1_sentence": string, "start_time": number, "segment_index": number}\n\n'
+        '  {"title": string, "summary_1_sentence": string, "start_time": number, "segment_index": number}\n'
+        "start_time must be the exact float value shown after 'start_time=' in the segment header (seconds, not minutes).\n\n"
         f"Segments:\n{segment_lines}"
     )
     raw = generate(prompt)
@@ -65,6 +66,12 @@ def _call_outline(segments: list[dict]) -> list:
             }
             for s in segments
         ]
+    # Override start_time with authoritative transcript value — LLM may misinterpret units
+    seg_map = {s["segment_index"]: s["start_time"] for s in segments}
+    for item in result:
+        idx = item.get("segment_index")
+        if idx is not None and idx in seg_map:
+            item["start_time"] = seg_map[idx]
     return result
 
 
@@ -92,7 +99,7 @@ def _call_summaries(full_text: str) -> dict:
 def _call_key_concepts(segments: list[dict], full_text: str) -> list:
     # Build a start_time lookup keyed on approximate position for the LLM hint
     segment_hints = "\n".join(
-        f"  {format_time(s['start_time'])}: {s['text'][:60]}"
+        f"  {s['start_time']:.1f}s: {s['text'][:60]}"
         for s in segments
     )
     prompt = (

@@ -49,6 +49,36 @@ interface SearchResult {
   score: number;
 }
 
+interface AuditIssue {
+  issue: string;
+  timestamp: string;
+  severity: "high" | "medium" | "low";
+  suggestion: string;
+}
+
+interface PedagogicalAssessment {
+  has_objectives: boolean;
+  logical_flow_score: number;
+  engagement_score: number;
+  strengths: string[];
+  improvements: string[];
+}
+
+interface PriorityFix {
+  priority_fix: string;
+  reason: string;
+  timestamp: string;
+  suggested_rewrite: string;
+}
+
+interface FacultyReport {
+  clarity_issues: AuditIssue[];
+  accessibility_issues: AuditIssue[];
+  pedagogical_assessment: PedagogicalAssessment;
+  priority_fix: PriorityFix;
+  overall_score: number;
+}
+
 interface LectureResult {
   video_id: string;
   duration_seconds: number;
@@ -59,6 +89,7 @@ interface LectureResult {
   flashcards: Flashcard[];
   search_index: SearchIndexEntry[];
   status: string;
+  faculty_report?: FacultyReport;
 }
 
 interface ProgressEvent {
@@ -70,6 +101,15 @@ interface ProgressEvent {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function parseTimestamp(ts: string): number {
+  const parts = ts.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  // single token — treat as raw seconds (LLM may return "840" instead of "14:00")
+  if (parts.length === 1 && !isNaN(parts[0])) return parts[0];
+  return 0;
+}
 
 function formatTime(seconds: number): string {
   const s = Math.floor(seconds);
@@ -428,7 +468,7 @@ function ResultsView({
   function seekTo(seconds: number) {
     playerRef.current?.contentWindow?.postMessage(
       JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
-      "*"
+      "https://www.youtube.com"
     );
   }
 
@@ -542,12 +582,223 @@ function ResultsView({
   );
 }
 
+// ─── Faculty Results View ────────────────────────────────────────────────────
+
+function SeverityBadge({ severity }: { severity: "high" | "medium" | "low" }) {
+  const styles = {
+    high: "bg-red-900 text-red-300 border-red-800",
+    medium: "bg-amber-900 text-amber-300 border-amber-800",
+    low: "bg-blue-900 text-blue-300 border-blue-800",
+  };
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-md font-medium border capitalize ${styles[severity]}`}>
+      {severity}
+    </span>
+  );
+}
+
+function ScoreCircle({ label, score }: { label: string; score: number }) {
+  const color =
+    score >= 8 ? "text-emerald-400 border-emerald-700" :
+    score >= 6 ? "text-amber-400 border-amber-700" :
+    "text-red-400 border-red-700";
+  return (
+    <div className={`flex flex-col items-center justify-center w-28 h-28 rounded-full border-2 ${color}`}>
+      <span className="text-2xl font-bold">{score}</span>
+      <span className="text-xs opacity-70 mt-0.5">/10</span>
+      <span className="text-xs mt-1 opacity-80">{label}</span>
+    </div>
+  );
+}
+
+function IssueCard({
+  issue,
+  onSeek,
+}: {
+  issue: AuditIssue;
+  onSeek: (s: number) => void;
+}) {
+  return (
+    <div className="p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <SeverityBadge severity={issue.severity} />
+        <TimestampPill seconds={parseTimestamp(issue.timestamp)} onSeek={onSeek} />
+      </div>
+      <p className="text-white text-sm leading-relaxed">{issue.issue}</p>
+      <p className="text-zinc-500 text-xs leading-relaxed">{issue.suggestion}</p>
+    </div>
+  );
+}
+
+function FacultyResultsView({ result }: { result: LectureResult }) {
+  const report = result.faculty_report!;
+  const playerRef = useRef<HTMLIFrameElement>(null);
+
+  function seekTo(seconds: number) {
+    playerRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func: "seekTo", args: [seconds, true] }),
+      "https://www.youtube.com"
+    );
+  }
+
+  const scoreColor =
+    report.overall_score >= 8 ? "text-emerald-400" :
+    report.overall_score >= 6 ? "text-amber-400" :
+    "text-red-400";
+
+  const ped = report.pedagogical_assessment;
+
+  return (
+    <div className="min-h-screen bg-[#0f0f0f] overflow-y-auto">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Video — small, centered */}
+        <div className="flex justify-center">
+          <div className="w-full max-w-[400px] rounded-xl overflow-hidden bg-black aspect-video">
+            <iframe
+              ref={playerRef}
+              title="Lecture video player"
+              src={`https://www.youtube.com/embed/${result.video_id}?enablejsapi=1`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+
+        {/* Section 1 — Overall Score */}
+        <div className="text-center space-y-1">
+          <p className={`text-6xl font-bold ${scoreColor}`}>
+            {report.overall_score}
+            <span className="text-3xl text-zinc-500"> / 10</span>
+          </p>
+          <p className="text-zinc-400 text-sm uppercase tracking-widest font-semibold">
+            Lecture Quality Score
+          </p>
+        </div>
+
+        {/* Section 2 — Priority Fix */}
+        <div className="rounded-2xl border border-orange-800 bg-[#1a0f00] p-6 space-y-4">
+          <p className="text-orange-400 font-bold text-lg">⚡ Top Priority Fix</p>
+          <p className="text-white text-xl font-semibold leading-snug">
+            {report.priority_fix.priority_fix}
+          </p>
+          <p className="text-zinc-400 text-sm leading-relaxed">{report.priority_fix.reason}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-500 text-xs">At:</span>
+            <TimestampPill
+              seconds={parseTimestamp(report.priority_fix.timestamp)}
+              onSeek={seekTo}
+            />
+          </div>
+          {report.priority_fix.suggested_rewrite && (
+            <div className="mt-2 p-4 rounded-xl bg-[#0f0f0f] border border-zinc-800">
+              <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2 font-semibold">
+                Suggested Rewrite
+              </p>
+              <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap font-mono">
+                {report.priority_fix.suggested_rewrite}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Section 3 — Issues Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+              Clarity Issues
+            </p>
+            {report.clarity_issues.length === 0 ? (
+              <p className="text-zinc-600 text-sm">No clarity issues found.</p>
+            ) : (
+              report.clarity_issues.map((issue, i) => (
+                <IssueCard key={i} issue={issue} onSeek={seekTo} />
+              ))
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+              Accessibility Issues
+            </p>
+            {report.accessibility_issues.length === 0 ? (
+              <p className="text-zinc-600 text-sm">No accessibility issues found.</p>
+            ) : (
+              report.accessibility_issues.map((issue, i) => (
+                <IssueCard key={i} issue={issue} onSeek={seekTo} />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Section 4 — Pedagogical Assessment */}
+        <div className="rounded-2xl bg-[#1a1a1a] border border-zinc-800 p-6 space-y-6">
+          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+            Pedagogical Assessment
+          </p>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <ScoreCircle label="Flow" score={ped.logical_flow_score} />
+            <ScoreCircle label="Engagement" score={ped.engagement_score} />
+            <div className="flex items-center gap-2">
+              {ped.has_objectives ? (
+                <span className="text-emerald-400 text-xl">✓</span>
+              ) : (
+                <span className="text-red-400 text-xl">✗</span>
+              )}
+              <span className="text-zinc-300 text-sm">
+                Learning objectives {ped.has_objectives ? "stated" : "not stated"}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {ped.strengths.length > 0 && (
+              <div>
+                <p className="text-emerald-500 text-xs font-semibold uppercase tracking-wider mb-2">
+                  Strengths
+                </p>
+                <ul className="space-y-1.5">
+                  {ped.strengths.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {ped.improvements.length > 0 && (
+              <div>
+                <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                  Improvements
+                </p>
+                <ul className="space-y-1.5">
+                  {ped.improvements.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <span className="text-orange-400 mt-0.5 shrink-0">•</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function StudyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get("url") ?? "";
+  const mode = searchParams.get("mode") ?? "student";
 
   const [events, setEvents] = useState<ProgressEvent[]>([]);
   const [result, setResult] = useState<LectureResult | null>(null);
@@ -561,7 +812,7 @@ function StudyContent() {
     }
 
     const es = new EventSource(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stream?url=${encodeURIComponent(videoUrl)}`
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stream?url=${encodeURIComponent(videoUrl)}&mode=${mode}`
     );
 
     es.onmessage = (e) => {
@@ -607,7 +858,10 @@ function StudyContent() {
     }
   }, [events]);
 
-  if (result) return <ResultsView result={result} />;
+  if (result) {
+    if (mode === "faculty" && result.faculty_report) return <FacultyResultsView result={result} />;
+    return <ResultsView result={result} />;
+  }
 
   if (error) {
     return (

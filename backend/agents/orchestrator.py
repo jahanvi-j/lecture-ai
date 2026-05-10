@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from agents.transcript_agent import fetch_and_segment
 from agents.content_agent import analyze_content
 from agents.study_agent import generate_flashcards, build_search_index
+from agents.faculty_agent import audit_lecture
 from llm_client import generate
 
 
@@ -23,7 +24,7 @@ def process_lecture(youtube_url: str, mode: str = "student") -> dict:
     flashcards = generate_flashcards(segments, outline)
     search_index = build_search_index(segments)
 
-    return {
+    result = {
         "video_id": transcript["video_id"],
         "duration_seconds": transcript["duration_seconds"],
         "segment_count": len(segments),
@@ -35,8 +36,13 @@ def process_lecture(youtube_url: str, mode: str = "student") -> dict:
         "status": "success",
     }
 
+    if mode == "faculty":
+        result["faculty_report"] = audit_lecture(segments, outline)
 
-def process_lecture_stream(youtube_url: str):
+    return result
+
+
+def process_lecture_stream(youtube_url: str, mode: str = "student"):
     def _event(event: str, **kwargs) -> str:
         return json.dumps({"event": event, **kwargs})
 
@@ -72,4 +78,10 @@ def process_lecture_stream(youtube_url: str):
         "search_index": search_index,
         "status": "success",
     }
+
+    if mode == "faculty":
+        yield _event("agent_start", agent="Faculty Agent", message="Running pedagogical audit...")
+        result["faculty_report"] = audit_lecture(segments, outline)
+        yield _event("agent_done", agent="Faculty Agent", message="Audit complete")
+
     yield _event("complete", data=result)

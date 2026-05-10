@@ -47,9 +47,9 @@ def process(req: ProcessRequest):
 
 
 @app.get("/api/stream")
-def stream(url: str = Query(...)):
+def stream(url: str = Query(...), mode: str = Query("student")):
     def sse_generator():
-        for line in process_lecture_stream(url):
+        for line in process_lecture_stream(url, mode=mode):
             yield f"data: {line}\n\n"
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
@@ -63,35 +63,47 @@ def search(req: SearchRequest):
 
 @app.post("/api/translate")
 def translate(req: TranslateRequest):
+    import json
+
     content = req.content
     language = req.language
 
-    outline_json = str(content.get("outline", []))
-    summaries_json = str(content.get("summaries", {}))
-    flashcards_json = str(content.get("flashcards", []))
+    outline_json = json.dumps(content.get("outline", []), ensure_ascii=False)
+    summaries_json = json.dumps(content.get("summaries", {}), ensure_ascii=False)
+    flashcards_json = json.dumps(content.get("flashcards", []), ensure_ascii=False)
 
     prompt = (
-        "You are an expert academic translator. Return only valid JSON with no markdown fences.\n\n"
-        f"Translate the following lecture content to {language}. "
-        "Translate all human-readable text fields (titles, summaries, questions, answers, definitions). "
-        "Keep all numeric fields, timestamps, and segment_index values unchanged.\n\n"
+        f"Translate the following lecture content to {language}.\n"
+        "Return ONLY valid JSON. No markdown. No backticks. No explanation.\n"
+        "Just the raw JSON object with the same structure as input.\n"
+        "Preserve all JSON keys exactly. Only translate the string values.\n"
+        "Keep all numeric fields, timestamps, and segment_index values unchanged.\n"
+        "Use actual unicode characters for all scripts including Chinese, Arabic, Hindi"
+        " — do not use escape sequences.\n\n"
         "Return a JSON object with keys: outline, summaries, flashcards.\n\n"
         f"outline: {outline_json}\n\n"
         f"summaries: {summaries_json}\n\n"
         f"flashcards: {flashcards_json}"
     )
 
-    import json
+    def _try_parse(raw: str) -> dict | None:
+        text = raw.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0]
+        try:
+            return json.loads(text)
+        except Exception:
+            return None
 
-    raw = generate(prompt)
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1].rsplit("```", 1)[0]
+    translated = None
+    for attempt in range(3):
+        raw = generate(prompt)
+        translated = _try_parse(raw)
+        if translated is not None:
+            break
 
-    try:
-        translated = json.loads(text)
-    except Exception:
-        return {"error": "translation_failed", "raw": raw}
+    if translated is None:
+        return {**content}
 
     return {
         **content,

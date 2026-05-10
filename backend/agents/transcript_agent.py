@@ -85,31 +85,51 @@ def _segment_transcript(entries: list[dict], segment_duration: int) -> list[dict
     return segments
 
 
+_FALLBACK_LANGS = ["en", "en-US", "en-GB", "a.en"]
+
+
 def fetch_transcript_via_youtube_api(video_id: str) -> dict:
+    # Try language variants via youtube-transcript-api before hitting timedtext
+    for lang in _FALLBACK_LANGS:
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            try:
+                transcript = transcript_list.find_transcript([lang])
+            except Exception:
+                continue
+            raw = transcript.fetch()
+            entries = [
+                {
+                    "start": e["start"],
+                    "duration": e.get("duration", 0),
+                    "text": e["text"],
+                }
+                for e in raw
+            ]
+            if entries:
+                logger.info("Fallback lang %s succeeded for %s (%d entries)", lang, video_id, len(entries))
+                segments = _segment_transcript(entries, SEGMENT_DURATION)
+                full_text = " ".join(e["text"] for e in entries)
+                duration = entries[-1]["start"] + entries[-1].get("duration", 0)
+                return {
+                    "video_id": video_id,
+                    "segments": segments,
+                    "full_text": full_text,
+                    "duration_seconds": duration,
+                }
+        except Exception as e:
+            logger.debug("Fallback lang %s failed for %s: %s", lang, video_id, e)
+
+    # Last resort: timedtext json3 endpoint
     api_key = os.environ.get("YOUTUBE_API_KEY", "")
-    if not api_key:
-        return {"error": "no_api_key", "message": "YOUTUBE_API_KEY not configured"}
-
-    with httpx.Client(timeout=30) as client:
-        # List caption tracks to confirm English availability
-        cap_resp = client.get(
-            "https://www.googleapis.com/youtube/v3/captions",
-            params={"part": "snippet", "videoId": video_id, "key": api_key},
-        )
-        if cap_resp.status_code == 200:
-            items = cap_resp.json().get("items", [])
-            has_english = any(
-                item.get("snippet", {}).get("language", "").startswith("en")
-                for item in items
-            )
-            if items and not has_english:
-                logger.warning("No English caption track listed for %s via Data API", video_id)
-
-        # Timedtext works for both manual and auto-generated captions on public videos
+    with httpx.Client(timeout=30, follow_redirects=True) as client:
         tt_resp = client.get(
             "https://www.youtube.com/api/timedtext",
             params={"lang": "en", "v": video_id, "fmt": "json3"},
+            headers={"Accept-Language": "en-US,en;q=0.9"},
         )
+        logger.debug("Timedtext status %s, body[:500]: %s", tt_resp.status_code, tt_resp.text[:500])
+
         if tt_resp.status_code != 200:
             return {
                 "error": "timedtext_failed",
@@ -119,17 +139,21 @@ def fetch_transcript_via_youtube_api(video_id: str) -> dict:
         try:
             tt_data = tt_resp.json()
         except Exception:
-            return {"error": "timedtext_parse_error", "message": "Failed to parse timedtext response"}
+            logger.error("Timedtext non-JSON body[:500]: %s", tt_resp.text[:500])
+            return {"error": "timedtext_parse_error", "message": "Timedtext response is not JSON"}
 
         entries = []
         for event in tt_data.get("events", []):
-            text = "".join(s.get("utf8", "") for s in event.get("segs", [])).strip()
-            if text:
-                entries.append({
-                    "start": event.get("tStartMs", 0) / 1000.0,
-                    "duration": event.get("dDurationMs", 0) / 1000.0,
-                    "text": text,
-                })
+            if "segs" not in event:
+                continue
+            text = "".join(s.get("utf8", "") for s in event["segs"]).strip()
+            if not text or text == "\n":
+                continue
+            entries.append({
+                "start": event.get("tStartMs", 0) / 1000.0,
+                "duration": event.get("dDurationMs", 0) / 1000.0,
+                "text": text,
+            })
 
         if not entries:
             return {"error": "empty_transcript", "message": f"No text content in timedtext for {video_id}"}
@@ -138,7 +162,7 @@ def fetch_transcript_via_youtube_api(video_id: str) -> dict:
         full_text = " ".join(e["text"] for e in entries)
         duration = entries[-1]["start"] + entries[-1].get("duration", 0)
 
-        logger.info("YouTube Data API fallback succeeded for %s (%d entries)", video_id, len(entries))
+        logger.info("Timedtext fallback succeeded for %s (%d entries)", video_id, len(entries))
         return {
             "video_id": video_id,
             "segments": segments,
@@ -176,8 +200,8 @@ def fetch_and_segment(youtube_url: str, use_cache: bool = True) -> dict:
         except Exception as e:
             primary_error = str(e)
             if attempt == 0:
-                logger.warning("Primary fetch attempt 1 failed: %s — retrying in 5s", primary_error)
-                time.sleep(5)
+                logger.warning("Primary fetch attempt 1 failed: %s — retrying in 15s", primary_error)
+                time.sleep(15)
             else:
                 logger.warning("Primary fetch attempt 2 failed: %s", primary_error)
 

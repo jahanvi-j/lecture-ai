@@ -20,7 +20,7 @@ export default function Home() {
     setError("");
     localStorage.setItem("lectureUrl", url.trim());
     localStorage.setItem("lectureMode", mode);
-    router.push(`/study?url=${encodeURIComponent(url.trim())}`);
+    router.push(`/study?url=${encodeURIComponent(url.trim())}&mode=${mode}`);
   }
 
   return (
