@@ -12,6 +12,7 @@ from youtube_transcript_api._errors import (
     NoTranscriptFound,
     VideoUnavailable,
 )
+from youtube_transcript_api.proxies import GenericProxyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,9 @@ logger = logging.getLogger(__name__)
 def _make_api() -> YouTubeTranscriptApi:
     proxy_url = os.getenv("PROXY_URL")
     if proxy_url:
-        return YouTubeTranscriptApi(proxies={"http": proxy_url, "https": proxy_url})
+        return YouTubeTranscriptApi(
+            proxy_config=GenericProxyConfig(http_url=proxy_url, https_url=proxy_url)
+        )
     return YouTubeTranscriptApi()
 
 SEGMENT_DURATION = 120  # seconds
