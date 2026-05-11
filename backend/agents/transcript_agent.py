@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
+from requests import Session
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     TranscriptsDisabled,
@@ -20,8 +21,11 @@ logger = logging.getLogger(__name__)
 def _make_api() -> YouTubeTranscriptApi:
     proxy_url = os.getenv("PROXY_URL")
     if proxy_url:
+        session = Session()
+        session.verify = False
         return YouTubeTranscriptApi(
-            proxy_config=GenericProxyConfig(http_url=proxy_url, https_url=proxy_url)
+            proxy_config=GenericProxyConfig(http_url=proxy_url, https_url=proxy_url),
+            http_client=session,
         )
     return YouTubeTranscriptApi()
 
