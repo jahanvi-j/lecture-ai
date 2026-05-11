@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { translateContent } from "../../lib/api";
+import ParticleCanvas from "@/components/ParticleCanvas";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ function TimestampPill({
   return (
     <button
       onClick={() => onSeek(seconds)}
-      className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-600 text-white text-xs font-mono font-medium hover:bg-indigo-500 transition-colors cursor-pointer shrink-0"
+      className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-600 text-white text-xs font-mono font-medium hover:bg-indigo-500 hover:scale-105 transition-all cursor-pointer shrink-0"
     >
       {formatTime(seconds)}
     </button>
@@ -142,7 +143,7 @@ function TimestampPill({
 
 function ProgressFeed({ events }: { events: ProgressEvent[] }) {
   return (
-    <div className="font-mono text-sm space-y-2">
+    <div className="font-mono text-base space-y-2">
       {events.map((ev, i) => {
         const isDone = ev.event === "agent_done";
         return (
@@ -181,10 +182,10 @@ function OutlineTab({
         >
           <TimestampPill seconds={item.start_time} onSeek={onSeek} />
           <div className="min-w-0">
-            <p className="text-white font-medium text-sm leading-snug">
+            <p className="text-white font-medium text-lg leading-snug">
               {item.title}
             </p>
-            <p className="text-zinc-500 text-xs mt-1 leading-relaxed">
+            <p className="text-zinc-500 text-base mt-1 leading-relaxed">
               {item.summary_1_sentence}
             </p>
           </div>
@@ -222,7 +223,7 @@ function SummariesTab({ summaries }: { summaries: Summaries }) {
         ))}
       </div>
       <div className="p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800">
-        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+        <p className="text-zinc-300 text-base leading-relaxed whitespace-pre-wrap">
           {summaries[depth]}
         </p>
       </div>
@@ -249,6 +250,12 @@ function FlashcardsTab({
     hard: "bg-red-900 text-red-300",
   };
 
+  const difficultyBorder = {
+    easy: "border-emerald-700",
+    medium: "border-amber-600",
+    hard: "border-red-700",
+  };
+
   function go(dir: 1 | -1) {
     setFlipped(false);
     setTimeout(() => setIndex((i) => Math.max(0, Math.min(flashcards.length - 1, i + dir))), 150);
@@ -271,9 +278,9 @@ function FlashcardsTab({
           onClick={() => setFlipped((f) => !f)}
         >
           {/* Front */}
-          <div className="flip-card-front p-6 rounded-xl bg-[#1a1a1a] border border-zinc-800 flex flex-col justify-between">
+          <div className={`flip-card-front p-6 rounded-xl bg-[#1a1a1a] border-2 ${difficultyBorder[card.difficulty] ?? difficultyBorder.medium} flex flex-col justify-between`}>
             <div className="flex items-start justify-between gap-3">
-              <p className="text-white text-base font-medium leading-relaxed">
+              <p className="text-white text-lg font-medium leading-relaxed">
                 {card.front}
               </p>
               <span
@@ -289,7 +296,7 @@ function FlashcardsTab({
 
           {/* Back */}
           <div className="flip-card-back p-6 rounded-xl bg-[#1e1a2e] border border-indigo-900 flex flex-col justify-between">
-            <p className="text-zinc-200 text-sm leading-relaxed">{card.back}</p>
+            <p className="text-zinc-200 text-base leading-relaxed">{card.back}</p>
             <div className="flex items-center gap-2 mt-4">
               <span className="text-zinc-600 text-xs">From:</span>
               <TimestampPill seconds={card.timestamp} onSeek={onSeek} />
@@ -393,7 +400,7 @@ function SearchTab({
                   Score: {(r.score * 100).toFixed(1)}%
                 </span>
               </div>
-              <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">
+              <p className="text-zinc-300 text-base leading-relaxed line-clamp-3">
                 {r.text}
               </p>
               <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
@@ -423,17 +430,61 @@ const LANGUAGES = [
   { code: "ar", label: "Arabic" },
 ];
 
+const DEFAULT_SPLIT = 40;
+const MIN_LEFT = 25;
+const MAX_LEFT = 70;
+
 function ResultsView({
   result,
+  mode,
 }: {
   result: LectureResult;
+  mode: string;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("outline");
   const [language, setLanguage] = useState("en");
   const [translating, setTranslating] = useState(false);
   const [displayResult, setDisplayResult] = useState<LectureResult>(result);
+  const [leftWidth, setLeftWidth] = useState(DEFAULT_SPLIT);
   const originalRef = useRef<LectureResult>(result);
   const playerRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const splitRef = useRef(DEFAULT_SPLIT);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("splitPos");
+    if (saved) {
+      const v = parseFloat(saved);
+      setLeftWidth(v);
+      splitRef.current = v;
+    }
+  }, []);
+
+  function onDividerMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(MAX_LEFT, Math.max(MIN_LEFT, pct));
+      splitRef.current = clamped;
+      setLeftWidth(clamped);
+    };
+    const onMouseUp = () => {
+      localStorage.setItem("splitPos", String(splitRef.current));
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  function onDividerDblClick() {
+    setLeftWidth(DEFAULT_SPLIT);
+    splitRef.current = DEFAULT_SPLIT;
+    localStorage.setItem("splitPos", String(DEFAULT_SPLIT));
+  }
 
   async function handleLanguageChange(lang: string) {
     setLanguage(lang);
@@ -472,21 +523,60 @@ function ResultsView({
     );
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "outline", label: "Outline" },
-    { key: "summaries", label: "Summaries" },
-    { key: "flashcards", label: "Flashcards" },
-    { key: "search", label: "Search" },
+  const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: "outline", label: "Outline", icon: "📋" },
+    { key: "summaries", label: "Summaries", icon: "📝" },
+    { key: "flashcards", label: "Flashcards", icon: "🃏" },
+    { key: "search", label: "Search", icon: "🔍" },
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0f0f0f]">
+    <div className="bg-[#0f172a] flex flex-col h-screen overflow-hidden relative">
+      <ParticleCanvas />
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900/80 shrink-0 z-20 bg-[#08101e]/90 backdrop-blur-sm">
+        <button
+          onClick={() => router.push("/")}
+          className="flex items-center gap-1.5 text-white text-base font-medium hover:text-zinc-300 transition-colors"
+        >
+          ← Home
+        </button>
+        <div className="flex items-center gap-2">
+          <svg width="24" height="22" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="hCapG" x1="0" y1="0" x2="56" y2="52" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#818cf8"/>
+                <stop offset="100%" stopColor="#c084fc"/>
+              </linearGradient>
+            </defs>
+            <polygon points="28,4 50,16 28,28 6,16" fill="url(#hCapG)"/>
+            <path d="M16 22 L16 36 Q28 44 40 36 L40 22 L28 28 Z" fill="url(#hCapG)" fillOpacity="0.6"/>
+            <line x1="50" y1="16" x2="50" y2="30" stroke="#c084fc" strokeWidth="2.5" strokeLinecap="round"/>
+            <circle cx="50" cy="33" r="3" fill="#c084fc"/>
+            <path d="M31 8 L26 19 L30 19 L25 30 L33 17 L29 17 Z" fill="white" fillOpacity="0.9"/>
+          </svg>
+          <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-violet-400">LectureAI</span>
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+          mode === "faculty"
+            ? "bg-amber-950 border-amber-800 text-amber-300"
+            : "bg-indigo-950 border-indigo-800 text-indigo-300"
+        }`}>
+          {mode === "faculty" ? "Faculty Mode" : "Student Mode"}
+        </span>
+      </div>
+      {/* Split panel */}
+      <div ref={containerRef} className="flex flex-1 overflow-hidden">
       {/* Left — video + concepts */}
-      <div className="w-[40%] flex flex-col overflow-y-auto border-r border-zinc-900 p-5 gap-5">
+      <div
+        style={{ width: `${leftWidth}%` }}
+        className="flex flex-col overflow-y-auto border-r border-zinc-900 p-5 gap-5 shrink-0"
+      >
         <div className="rounded-xl overflow-hidden bg-black aspect-video">
           <iframe
             ref={playerRef}
             id="yt-player"
+            title="Lecture video player"
             src={`https://www.youtube.com/embed/${result.video_id}?enablejsapi=1`}
             className="w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -504,7 +594,7 @@ function ResultsView({
                 key={i}
                 onClick={() => seekTo(c.start_time)}
                 title={c.definition}
-                className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-zinc-800 text-zinc-300 text-xs hover:border-indigo-700 hover:text-indigo-300 transition-colors text-left"
+                className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-zinc-800 text-zinc-300 text-sm hover:border-indigo-700 hover:text-indigo-300 hover:shadow-[0_0_10px_rgba(99,102,241,0.4)] transition-all text-left"
               >
                 {c.term}
                 <span className="ml-1.5 text-zinc-600 font-mono">
@@ -515,29 +605,43 @@ function ResultsView({
           </div>
         </div>
 
-        <div className="text-zinc-700 text-xs font-mono">
+        <div className="text-zinc-700 text-sm font-mono">
           {result.segment_count} segments · {formatTime(result.duration_seconds)}
         </div>
       </div>
 
+      {/* Drag divider */}
+      <div
+        onMouseDown={onDividerMouseDown}
+        onDoubleClick={onDividerDblClick}
+        title="Drag to resize · Double-click to reset"
+        className="w-2 bg-zinc-900 hover:bg-indigo-900 cursor-col-resize flex items-center justify-center shrink-0 transition-all select-none group"
+      >
+        <span className="text-zinc-600 group-hover:text-indigo-300 text-base leading-none select-none transition-colors group-hover:drop-shadow-[0_0_6px_rgba(99,102,241,0.8)]">
+          ⟺
+        </span>
+      </div>
+
       {/* Right — tabs */}
-      <div className="w-[60%] flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tab bar */}
         <div className="flex items-center border-b border-zinc-900 shrink-0">
           <div className="flex">
-            {tabs.map(({ key, label }) => (
+            {tabs.map(({ key, label, icon }) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
-                className={`px-5 py-4 text-sm font-medium transition-colors relative ${
+                title={label}
+                className={`px-6 py-3 text-base font-medium transition-colors relative flex items-center gap-2 ${
                   tab === key
                     ? "text-white"
                     : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                {label}
+                <span>{icon}</span>
+                <span>{label}</span>
                 {tab === key && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t" />
+                  <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500 rounded-t" />
                 )}
               </button>
             ))}
@@ -551,7 +655,7 @@ function ResultsView({
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
               disabled={translating}
-              className="bg-[#1a1a1a] text-white text-xs border border-zinc-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50 transition-colors cursor-pointer"
+              className="bg-[#1a1a1a] text-white text-sm border border-zinc-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50 transition-colors cursor-pointer"
             >
               {LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code}>
@@ -577,6 +681,10 @@ function ResultsView({
             <SearchTab searchIndex={result.search_index} onSeek={seekTo} />
           )}
         </div>
+      </div>
+      </div>
+      <div className="shrink-0 px-5 py-3 text-right border-t border-zinc-900/50">
+        <p className="text-gray-500 text-sm">LectureAI | Jahanvi Jeswani</p>
       </div>
     </div>
   );
@@ -630,7 +738,8 @@ function IssueCard({
   );
 }
 
-function FacultyResultsView({ result }: { result: LectureResult }) {
+function FacultyResultsView({ result }: { result: LectureResult; mode?: string }) {
+  const router = useRouter();
   const report = result.faculty_report!;
   const playerRef = useRef<HTMLIFrameElement>(null);
 
@@ -649,7 +758,36 @@ function FacultyResultsView({ result }: { result: LectureResult }) {
   const ped = report.pedagogical_assessment;
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] overflow-y-auto">
+    <div className="min-h-screen bg-[#0f172a] relative overflow-y-auto">
+      <ParticleCanvas />
+      {/* Top bar */}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-5 py-4 border-b border-zinc-900/80 bg-[#08101e]/90 backdrop-blur-sm">
+        <button
+          onClick={() => router.push("/")}
+          className="flex items-center gap-1.5 text-white text-base font-medium hover:text-zinc-300 transition-colors"
+        >
+          ← Home
+        </button>
+        <div className="flex items-center gap-2">
+          <svg width="24" height="22" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="fCapG" x1="0" y1="0" x2="56" y2="52" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#818cf8"/>
+                <stop offset="100%" stopColor="#c084fc"/>
+              </linearGradient>
+            </defs>
+            <polygon points="28,4 50,16 28,28 6,16" fill="url(#fCapG)"/>
+            <path d="M16 22 L16 36 Q28 44 40 36 L40 22 L28 28 Z" fill="url(#fCapG)" fillOpacity="0.6"/>
+            <line x1="50" y1="16" x2="50" y2="30" stroke="#c084fc" strokeWidth="2.5" strokeLinecap="round"/>
+            <circle cx="50" cy="33" r="3" fill="#c084fc"/>
+            <path d="M31 8 L26 19 L30 19 L25 30 L33 17 L29 17 Z" fill="white" fillOpacity="0.9"/>
+          </svg>
+          <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-violet-400">LectureAI</span>
+        </div>
+        <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-amber-950 border-amber-800 text-amber-300">
+          Faculty Mode
+        </span>
+      </div>
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
 
         {/* Video — small, centered */}
@@ -787,6 +925,7 @@ function FacultyResultsView({ result }: { result: LectureResult }) {
           </div>
         </div>
 
+        <p className="text-right text-gray-500 text-sm py-4">LectureAI | Jahanvi Jeswani</p>
       </div>
     </div>
   );
@@ -859,13 +998,13 @@ function StudyContent() {
   }, [events]);
 
   if (result) {
-    if (mode === "faculty" && result.faculty_report) return <FacultyResultsView result={result} />;
-    return <ResultsView result={result} />;
+    if (mode === "faculty" && result.faculty_report) return <FacultyResultsView result={result} mode={mode} />;
+    return <ResultsView result={result} mode={mode} />;
   }
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center px-4">
+      <main className="animated-gradient min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md p-6 rounded-2xl bg-[#1a1a1a] border border-red-900 space-y-4">
           <p className="text-red-400 font-semibold">Error</p>
           <p className="text-zinc-400 text-sm">{error}</p>
@@ -881,10 +1020,22 @@ function StudyContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center px-4">
-      <div className="w-full max-w-lg space-y-8">
+    <main className="animated-gradient min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      <ParticleCanvas />
+
+      <div className="w-full max-w-2xl space-y-8 relative z-10">
+        {/* Concentric rings */}
+        <div className="flex justify-center">
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border border-indigo-500/20" style={{ animation: "spin-cw 6s linear infinite" }} />
+            <div className="absolute inset-2 rounded-full border border-indigo-400/30" style={{ animation: "spin-ccw 4s linear infinite" }} />
+            <div className="absolute inset-4 rounded-full border-t border-indigo-400" style={{ animation: "spin-cw 2s linear infinite" }} />
+            <span className="text-indigo-400 text-xl relative z-10">⚡</span>
+          </div>
+        </div>
+
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-semibold text-white">
+          <h1 className="text-4xl font-bold text-white">
             Analyzing your lecture...
           </h1>
           <p className="text-zinc-500 text-sm font-mono truncate">{videoUrl}</p>
@@ -892,14 +1043,21 @@ function StudyContent() {
 
         <div
           ref={feedRef}
-          className="p-5 rounded-2xl bg-[#1a1a1a] border border-zinc-800 max-h-72 overflow-y-auto space-y-2"
+          className="p-5 rounded-2xl bg-[#1a1a1a]/80 border border-zinc-800 backdrop-blur-sm max-h-72 overflow-y-auto space-y-2"
         >
           {events.length === 0 ? (
-            <p className="text-zinc-600 text-sm font-mono">Connecting...</p>
+            <p className="text-zinc-600 text-base font-mono">Connecting...</p>
           ) : (
             <ProgressFeed events={events} />
           )}
         </div>
+
+        <button
+          onClick={() => router.push("/")}
+          className="w-full py-3 rounded-xl text-white text-sm font-medium border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all"
+        >
+          ✕ Cancel
+        </button>
       </div>
     </main>
   );
@@ -909,7 +1067,7 @@ export default function StudyPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
+        <main className="animated-gradient min-h-screen flex items-center justify-center">
           <p className="text-zinc-600 font-mono text-sm">Loading...</p>
         </main>
       }

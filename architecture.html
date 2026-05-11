@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LectureAI — Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f172a;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 24px;
+  }
+
+  svg {
+    width: 100%;
+    max-width: 1200px;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Flowing dashed arrows */
+  .flow-arrow {
+    stroke-dasharray: 8 6;
+    animation: flow 1.4s linear infinite;
+  }
+  .flow-arrow-slow {
+    stroke-dasharray: 8 6;
+    animation: flow 2s linear infinite;
+  }
+  @keyframes flow {
+    from { stroke-dashoffset: 28; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  /* Draw-on load for arrow lines */
+  .draw-line {
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: drawLine 0.8s ease forwards;
+  }
+  @keyframes drawLine {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Orchestrator glow pulse */
+  .orch-glow {
+    animation: glowPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%, 100% { filter: drop-shadow(0 0 8px #6366f1aa) drop-shadow(0 0 20px #6366f155); }
+    50%       { filter: drop-shadow(0 0 16px #818cf8cc) drop-shadow(0 0 40px #6366f188); }
+  }
+
+  /* Staggered fade-in for agent boxes */
+  .agent-box { opacity: 0; animation: fadeUp 0.6s ease forwards; }
+  .agent-box:nth-child(1) { animation-delay: 0.8s; }
+  .agent-box:nth-child(2) { animation-delay: 1.0s; }
+  .agent-box:nth-child(3) { animation-delay: 1.2s; }
+  .agent-box:nth-child(4) { animation-delay: 1.4s; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Top-level boxes slide in */
+  .slide-in { opacity: 0; animation: slideIn 0.7s ease forwards; }
+  .slide-in-1 { animation-delay: 0.05s; }
+  .slide-in-2 { animation-delay: 0.2s; }
+  .slide-in-3 { animation-delay: 0.4s; }
+  .slide-in-4 { animation-delay: 0.6s; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Service box fade */
+  .svc-box { opacity: 0; animation: fadeUp 0.6s ease forwards; }
+  .svc-box-1 { animation-delay: 1.6s; }
+  .svc-box-2 { animation-delay: 1.8s; }
+
+  /* Arrow delay helpers */
+  .arr-delay-1 { animation-delay: 0.3s; }
+  .arr-delay-2 { animation-delay: 0.5s; }
+  .arr-delay-3 { animation-delay: 0.7s; }
+  .arr-delay-4 { animation-delay: 0.9s; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1200 980" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#0f1f3d"/>
+    </linearGradient>
+    <linearGradient id="orchGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="frontendGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="backendGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="agentGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4338ca"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa" opacity="0.9"/>
+    </marker>
+    <marker id="arrowIndigo" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#818cf8" opacity="0.9"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" opacity="0.9"/>
+    </marker>
+
+    <!-- Glow filter for orchestrator -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Grid pattern subtle background -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="980" fill="url(#bgGrad)"/>
+  <rect width="1200" height="980" fill="url(#grid)" opacity="0.5"/>
+
+  <!-- Title -->
+  <text x="600" y="44" text-anchor="middle" font-size="26" font-weight="700" fill="#f1f5f9" letter-spacing="0.5">
+    LectureAI — Multi-Agent Architecture
+  </text>
+  <text x="600" y="70" text-anchor="middle" font-size="14" fill="#64748b" letter-spacing="1">
+    5 specialized AI agents  •  Real-time streaming  •  2 deployment targets
+  </text>
+
+  <!-- Decorative line under title -->
+  <line x1="200" y1="82" x2="1000" y2="82" stroke="#1e3a5f" stroke-width="1"/>
+
+  <!-- ═══════════════════════════════════════
+       ROW 1: User
+  ══════════════════════════════════════════ -->
+  <g class="slide-in slide-in-1">
+    <!-- User box -->
+    <rect x="475" y="100" width="250" height="72" rx="12" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="600" y="128" text-anchor="middle" font-size="22">👤</text>
+    <text x="600" y="152" text-anchor="middle" font-size="15" font-weight="600" fill="#f1f5f9">User</text>
+  </g>
+
+  <!-- Arrow: User → Frontend -->
+  <g>
+    <line class="draw-line arr-delay-1" x1="600" y1="172" x2="600" y2="208"
+      stroke="#60a5fa" stroke-width="2" marker-end="url(#arrowBlue)" opacity="0.8"/>
+    <line class="flow-arrow" x1="600" y1="172" x2="600" y2="208"
+      stroke="#60a5fa" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       ROW 2: Frontend
+  ══════════════════════════════════════════ -->
+  <g class="slide-in slide-in-2">
+    <rect x="390" y="210" width="420" height="84" rx="12" fill="url(#frontendGrad)" opacity="0.9"/>
+    <rect x="390" y="210" width="420" height="84" rx="12" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="600" y="240" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9">🖥️  Vercel Frontend</text>
+    <text x="600" y="264" text-anchor="middle" font-size="12.5" fill="#bfdbfe">Next.js  •  TypeScript  •  Tailwind CSS</text>
+    <text x="600" y="282" text-anchor="middle" font-size="11" fill="#93c5fd" opacity="0.8">Edge-deployed • Server-side streaming</text>
+  </g>
+
+  <!-- Arrow: Frontend → Backend -->
+  <g>
+    <line class="draw-line arr-delay-2" x1="600" y1="294" x2="600" y2="330"
+      stroke="#a78bfa" stroke-width="2" marker-end="url(#arrowIndigo)" opacity="0.8"/>
+    <line class="flow-arrow" x1="600" y1="294" x2="600" y2="330"
+      stroke="#a78bfa" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       ROW 3: Backend
+  ══════════════════════════════════════════ -->
+  <g class="slide-in slide-in-3">
+    <rect x="340" y="332" width="520" height="84" rx="12" fill="url(#backendGrad)" opacity="0.9"/>
+    <rect x="340" y="332" width="520" height="84" rx="12" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="600" y="362" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9">⚡  FastAPI Backend on Render</text>
+    <text x="600" y="386" text-anchor="middle" font-size="12.5" fill="#ddd6fe">/api/stream  •  /api/search  •  /api/translate</text>
+    <text x="600" y="404" text-anchor="middle" font-size="11" fill="#c4b5fd" opacity="0.8">Server-Sent Events • Async Python • CORS enabled</text>
+  </g>
+
+  <!-- Arrow: Backend → Orchestrator -->
+  <g>
+    <line class="draw-line arr-delay-3" x1="600" y1="416" x2="600" y2="452"
+      stroke="#818cf8" stroke-width="2" marker-end="url(#arrowIndigo)" opacity="0.8"/>
+    <line class="flow-arrow" x1="600" y1="416" x2="600" y2="452"
+      stroke="#818cf8" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       ROW 4: Orchestrator (LARGEST, GLOWING)
+  ══════════════════════════════════════════ -->
+  <g class="slide-in slide-in-4">
+    <!-- Outer glow rect -->
+    <rect x="258" y="454" width="684" height="100" rx="16" fill="#312e81" opacity="0.4" filter="url(#glow)"/>
+    <!-- Main box -->
+    <g class="orch-glow">
+      <rect x="262" y="456" width="676" height="96" rx="14" fill="url(#orchGrad)"/>
+      <rect x="262" y="456" width="676" height="96" rx="14" fill="none"
+        stroke="#818cf8" stroke-width="2.5" stroke-dasharray="6 3"/>
+    </g>
+    <text x="600" y="488" text-anchor="middle" font-size="19" font-weight="800" fill="#ffffff">🎯  Orchestrator Agent</text>
+    <text x="600" y="512" text-anchor="middle" font-size="13" fill="#c7d2fe">Coordinates all agents  •  Streams live progress  •  Handles errors</text>
+    <text x="600" y="533" text-anchor="middle" font-size="11.5" fill="#a5b4fc" opacity="0.85">Sequential pipeline execution  •  Real-time SSE yield  •  Graceful fallbacks</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       Fan-out arrows: Orchestrator → 4 Agents
+  ══════════════════════════════════════════ -->
+  <!-- Agent centers: 165, 390, 615, 840 (x), y=660 top -->
+  <!-- Arrow from orch bottom center 600,552 fan to each agent top center -->
+
+  <!-- to Transcript (165) -->
+  <g>
+    <path class="draw-line arr-delay-1" d="M 600 552 Q 600 590 165 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
+    <path class="flow-arrow-slow" d="M 600 552 Q 600 590 165 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
+  </g>
+  <!-- to Content (390) -->
+  <g>
+    <path class="draw-line arr-delay-2" d="M 600 552 Q 580 590 390 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
+    <path class="flow-arrow-slow" d="M 600 552 Q 580 590 390 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
+  </g>
+  <!-- to Study (615) -->
+  <g>
+    <path class="draw-line arr-delay-3" d="M 600 552 Q 610 590 618 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
+    <path class="flow-arrow-slow" d="M 600 552 Q 610 590 618 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
+  </g>
+  <!-- to Faculty (843) -->
+  <g>
+    <path class="draw-line arr-delay-4" d="M 600 552 Q 620 590 843 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
+    <path class="flow-arrow-slow" d="M 600 552 Q 620 590 843 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       ROW 5: 4 Agent Boxes
+       x centers: 165, 390, 618, 843
+       width: 210, top: 624, height: 128
+  ══════════════════════════════════════════ -->
+  <g>
+    <!-- Transcript Agent -->
+    <g class="agent-box">
+      <rect x="60" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="60" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="165" y="652" text-anchor="middle" font-size="16">📝</text>
+      <text x="165" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Transcript Agent</text>
+      <text x="165" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Fetches YouTube transcripts</text>
+      <text x="165" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Segments into 2-min chunks</text>
+      <text x="165" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Caches results</text>
+      <rect x="70" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+    </g>
+
+    <!-- Content Agent -->
+    <g class="agent-box">
+      <rect x="285" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="285" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="390" y="652" text-anchor="middle" font-size="16">🧠</text>
+      <text x="390" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Content Agent</text>
+      <text x="390" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Builds structured outline</text>
+      <text x="390" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">3-depth summaries</text>
+      <text x="390" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Extracts key concepts</text>
+      <rect x="295" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+    </g>
+
+    <!-- Study Agent -->
+    <g class="agent-box">
+      <rect x="513" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="513" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="618" y="652" text-anchor="middle" font-size="16">🃏</text>
+      <text x="618" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Study Agent</text>
+      <text x="618" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Generates flashcards</text>
+      <text x="618" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Embeds for semantic search</text>
+      <text x="618" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Cosine similarity search</text>
+      <rect x="523" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+    </g>
+
+    <!-- Faculty Agent -->
+    <g class="agent-box">
+      <rect x="738" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="738" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="843" y="652" text-anchor="middle" font-size="16">🎓</text>
+      <text x="843" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Faculty Agent</text>
+      <text x="843" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Clarity &amp; pacing audit</text>
+      <text x="843" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Accessibility analysis</text>
+      <text x="843" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Priority fix report</text>
+      <rect x="748" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       Arrows: Agents → Services
+       Gemini center x=350, YouTube center x=850
+       Services top y=826
+  ══════════════════════════════════════════ -->
+
+  <!-- Content/Study/Faculty → Gemini -->
+  <g>
+    <!-- Transcript → YouTube (sole user of YouTube) -->
+    <path class="draw-line arr-delay-1" d="M 165 754 Q 165 800 850 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
+    <path class="flow-arrow-slow" d="M 165 754 Q 165 800 850 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Content → Gemini -->
+    <path class="draw-line arr-delay-2" d="M 390 754 Q 390 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
+    <path class="flow-arrow-slow" d="M 390 754 Q 390 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Study → Gemini -->
+    <path class="draw-line arr-delay-3" d="M 618 754 Q 618 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
+    <path class="flow-arrow-slow" d="M 618 754 Q 618 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Faculty → Gemini -->
+    <path class="draw-line arr-delay-4" d="M 843 754 Q 843 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
+    <path class="flow-arrow-slow" d="M 843 754 Q 843 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       ROW 6: External Services
+  ══════════════════════════════════════════ -->
+  <g>
+    <!-- Gemini -->
+    <g class="svc-box svc-box-1">
+      <rect x="120" y="828" width="460" height="96" rx="12" fill="#1e293b" opacity="0.95"/>
+      <rect x="120" y="828" width="460" height="96" rx="12" fill="none" stroke="#374151" stroke-width="1.5"/>
+      <text x="350" y="858" text-anchor="middle" font-size="17">✨</text>
+      <text x="350" y="878" text-anchor="middle" font-size="14" font-weight="700" fill="#e2e8f0">Gemini 1.5 Flash</text>
+      <text x="350" y="898" text-anchor="middle" font-size="12" fill="#94a3b8">LLM generation + embeddings</text>
+      <text x="350" y="914" text-anchor="middle" font-size="12" fill="#94a3b8">Content, Study, Faculty agents</text>
+    </g>
+
+    <!-- YouTube + ScraperAPI -->
+    <g class="svc-box svc-box-2">
+      <rect x="620" y="828" width="460" height="96" rx="12" fill="#1e293b" opacity="0.95"/>
+      <rect x="620" y="828" width="460" height="96" rx="12" fill="none" stroke="#374151" stroke-width="1.5"/>
+      <text x="850" y="858" text-anchor="middle" font-size="17">📺</text>
+      <text x="850" y="878" text-anchor="middle" font-size="14" font-weight="700" fill="#e2e8f0">YouTube Data API + ScraperAPI</text>
+      <text x="850" y="898" text-anchor="middle" font-size="12" fill="#94a3b8">Transcript fetching</text>
+      <text x="850" y="914" text-anchor="middle" font-size="12" fill="#94a3b8">Proxy for IP bypass</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════
+       Legend / footer
+  ══════════════════════════════════════════ -->
+  <g opacity="0.6">
+    <line x1="100" y1="948" x2="140" y2="948" stroke="#818cf8" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="148" y="952" font-size="11" fill="#94a3b8">Animated data flow</text>
+
+    <rect x="260" y="941" width="14" height="14" rx="3" fill="url(#agentGrad)"/>
+    <text x="280" y="952" font-size="11" fill="#94a3b8">AI Agent</text>
+
+    <rect x="360" y="941" width="14" height="14" rx="3" fill="#1e293b" stroke="#374151" stroke-width="1"/>
+    <text x="380" y="952" font-size="11" fill="#94a3b8">External Service</text>
+
+    <rect x="490" y="941" width="14" height="14" rx="3" fill="url(#frontendGrad)"/>
+    <text x="510" y="952" font-size="11" fill="#94a3b8">Vercel</text>
+
+    <rect x="570" y="941" width="14" height="14" rx="3" fill="url(#backendGrad)"/>
+    <text x="590" y="952" font-size="11" fill="#94a3b8">Render</text>
+
+    <text x="1100" y="952" text-anchor="end" font-size="11" fill="#475569">LectureAI © 2026</text>
+  </g>
+</svg>
+</body>
+</html>

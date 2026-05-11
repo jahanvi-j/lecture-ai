@@ -2,8 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ParticleCanvas from "@/components/ParticleCanvas";
 
 type Mode = "student" | "faculty";
+
+const FEATURES = [
+  {
+    icon: "📋",
+    title: "Smart Outlines",
+    desc: "Timestamped chapters you can jump to",
+  },
+  {
+    icon: "🔍",
+    title: "Semantic Search",
+    desc: "Find any moment by asking a question",
+  },
+  {
+    icon: "🎓",
+    title: "Faculty Audit",
+    desc: "Private teaching quality report",
+  },
+];
 
 export default function Home() {
   const router = useRouter();
@@ -24,58 +43,133 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0f0f0f] flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-xl flex flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-5xl font-bold text-white tracking-tight">
-            LectureAI
-          </h1>
-          <p className="text-zinc-400 text-lg">
-            Turn any lecture into a complete study environment
-          </p>
-        </div>
+    <>
+      <ParticleCanvas />
+      <main className="animated-gradient min-h-screen flex flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-xl flex flex-col items-center gap-10">
+          <div className="flex flex-col items-center gap-4 text-center">
+            {/* Logo */}
+            <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="capG" x1="0" y1="0" x2="56" y2="52" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#818cf8"/>
+                  <stop offset="100%" stopColor="#c084fc"/>
+                </linearGradient>
+              </defs>
+              <polygon points="28,4 50,16 28,28 6,16" fill="url(#capG)"/>
+              <path d="M16 22 L16 36 Q28 44 40 36 L40 22 L28 28 Z" fill="url(#capG)" fillOpacity="0.6"/>
+              <line x1="50" y1="16" x2="50" y2="30" stroke="#c084fc" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="50" cy="33" r="3" fill="#c084fc"/>
+              <path d="M31 8 L26 19 L30 19 L25 30 L33 17 L29 17 Z" fill="white" fillOpacity="0.9"/>
+            </svg>
 
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-          <input
-            type="text"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              if (error) setError("");
-            }}
-            placeholder="Paste a YouTube URL..."
-            className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-4 text-base focus:outline-none focus:border-zinc-500 transition-colors"
-          />
+            <h1 className="text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-violet-400">
+              LectureAI
+            </h1>
+            <p className="text-zinc-400 text-lg">
+              Turn any lecture into a complete study environment
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {["⚡ 5 AI Agents", "🌍 6 Languages", "🎓 Student + Faculty"].map((badge) => (
+                <span
+                  key={badge}
+                  className="px-3 py-1 rounded-full text-xs font-medium bg-zinc-900 border border-zinc-700 text-zinc-400"
+                >
+                  {badge}
+                </span>
+              ))}
+            </div>
+          </div>
 
-          {error && (
-            <p className="text-red-400 text-sm px-1">{error}</p>
-          )}
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (error) setError("");
+              }}
+              placeholder="Paste a YouTube URL..."
+              className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-4 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            />
 
-          <div className="flex gap-2">
-            {(["student", "faculty"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium capitalize transition-colors ${
-                  mode === m
-                    ? "bg-white text-black"
-                    : "bg-[#1a1a1a] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
-                }`}
+            {error && (
+              <p className="text-red-400 text-sm px-1">{error}</p>
+            )}
+
+            <div className="flex gap-2">
+              {(["student", "faculty"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`flex-1 py-3 rounded-xl text-sm font-medium capitalize transition-colors ${
+                    mode === m
+                      ? "bg-white text-black"
+                      : "bg-[#1a1a1a] text-zinc-400 border border-zinc-800 hover:border-zinc-600"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-4 rounded-xl bg-indigo-600 text-white font-semibold text-base hover:bg-indigo-500 hover:scale-105 active:scale-100 transition-all"
+            >
+              Analyze Lecture
+            </button>
+          </form>
+
+          <div className="w-full grid grid-cols-3 gap-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="flex flex-col gap-2 p-4 rounded-xl bg-[#1a1a1a]/70 border border-zinc-800/60 backdrop-blur-sm"
               >
-                {m}
-              </button>
+                <span className="text-2xl">{f.icon}</span>
+                <p className="text-white text-lg font-semibold">{f.title}</p>
+                <p className="text-zinc-500 text-base leading-relaxed">{f.desc}</p>
+              </div>
             ))}
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-4 rounded-xl bg-white text-black font-semibold text-base hover:bg-zinc-200 active:bg-zinc-300 transition-colors"
-          >
-            Analyze Lecture
-          </button>
-        </form>
-      </div>
-    </main>
+          {/* How it works */}
+          <div className="w-full space-y-4">
+            <p className="text-center text-zinc-600 text-xs uppercase tracking-widest font-semibold">
+              How it works
+            </p>
+            <div className="flex items-start gap-2">
+              <div className="flex-1 flex flex-col items-center gap-2 text-center">
+                <div className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
+                  <span className="text-indigo-400 text-sm font-bold">1</span>
+                </div>
+                <p className="text-white text-sm font-semibold">Paste URL</p>
+                <p className="text-zinc-500 text-xs leading-relaxed">Drop any YouTube lecture link</p>
+              </div>
+              <span className="text-zinc-700 text-lg mt-3.5 shrink-0">→</span>
+              <div className="flex-1 flex flex-col items-center gap-2 text-center">
+                <div className="w-9 h-9 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+                  <span className="text-purple-400 text-sm font-bold">2</span>
+                </div>
+                <p className="text-white text-sm font-semibold">AI Analyzes</p>
+                <p className="text-zinc-500 text-xs leading-relaxed">5 agents process your lecture</p>
+              </div>
+              <span className="text-zinc-700 text-lg mt-3.5 shrink-0">→</span>
+              <div className="flex-1 flex flex-col items-center gap-2 text-center">
+                <div className="w-9 h-9 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center">
+                  <span className="text-violet-400 text-sm font-bold">3</span>
+                </div>
+                <p className="text-white text-sm font-semibold">Study Smarter</p>
+                <p className="text-zinc-500 text-xs leading-relaxed">Outline, flashcards & search</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="w-full text-right text-gray-500 text-sm py-4">LectureAI | Jahanvi Jeswani</p>
+        </div>
+      </main>
+    </>
   );
 }

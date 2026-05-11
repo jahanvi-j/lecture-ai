@@ -53,9 +53,12 @@ def _call_clarity(segments: list[dict]) -> list:
     prompt = (
         f"{SYSTEM_PREAMBLE}\n\n"
         "Analyze these lecture transcript segments for clarity and pacing issues.\n"
+        "Find the TOP 3 most critical clarity issues only. "
+        "Be selective - only include issues that significantly impact student understanding. "
+        "Quality over quantity.\n"
         "Look for: confusing explanations, concepts introduced too fast, assumptions of prior knowledge "
         "that weren't established, unclear transitions, or rambling.\n"
-        "Return a JSON array of up to 5 objects:\n"
+        "Return a JSON array of up to 3 objects:\n"
         '  [{"issue": string, "timestamp": "MM:SS", "severity": "high"|"medium"|"low", "suggestion": string}]\n\n'
         f"Segments:\n{seg_text}"
     )
@@ -63,7 +66,7 @@ def _call_clarity(segments: list[dict]) -> list:
     result = _parse_json_safe(raw, prompt)
     if not isinstance(result, list):
         return []
-    return result[:5]
+    return result[:3]
 
 
 def _call_accessibility(segments: list[dict]) -> list:
@@ -71,10 +74,13 @@ def _call_accessibility(segments: list[dict]) -> list:
     prompt = (
         f"{SYSTEM_PREAMBLE}\n\n"
         "Audit these lecture segments for accessibility and equity issues.\n"
+        "Find the TOP 3 most critical accessibility issues only. "
+        "Be selective - only include the most impactful barriers. "
+        "Quality over quantity.\n"
         "Look for: jargon used without definition, examples that assume a specific cultural background or "
         "exclude certain student groups, lack of verbal descriptions for implied visual content, "
         "idiomatic language that non-native speakers may miss.\n"
-        "Return a JSON array of up to 5 objects:\n"
+        "Return a JSON array of up to 3 objects:\n"
         '  [{"issue": string, "timestamp": "MM:SS", "severity": "high"|"medium"|"low", "suggestion": string}]\n\n'
         f"Segments:\n{seg_text}"
     )
@@ -82,7 +88,7 @@ def _call_accessibility(segments: list[dict]) -> list:
     result = _parse_json_safe(raw, prompt)
     if not isinstance(result, list):
         return []
-    return result[:5]
+    return result[:3]
 
 
 def _call_pedagogical(segments: list[dict], outline: list[dict]) -> dict:
@@ -159,20 +165,22 @@ def _compute_overall_score(
     clarity_issues: list,
     accessibility_issues: list,
     pedagogical: dict,
-) -> int:
-    flow = max(1, min(10, int(pedagogical.get("logical_flow_score", 5))))
-    engagement = max(1, min(10, int(pedagogical.get("engagement_score", 5))))
-    base = (flow + engagement) / 2
+) -> float:
+    flow = pedagogical.get("logical_flow_score", 7)
+    engagement = pedagogical.get("engagement_score", 7)
+    base_score = (flow + engagement) / 2
 
-    def _severity_weight(issues: list) -> float:
-        return sum(
-            2.0 if i.get("severity") == "high" else 1.0 if i.get("severity") == "medium" else 0.5
-            for i in issues
-            if isinstance(i, dict)
-        )
+    all_issues = clarity_issues + accessibility_issues
+    high = sum(1 for i in all_issues if i.get("severity") == "high")
+    medium = sum(1 for i in all_issues if i.get("severity") == "medium")
+    low = sum(1 for i in all_issues if i.get("severity") == "low")
 
-    penalty = (_severity_weight(clarity_issues) + _severity_weight(accessibility_issues)) * 0.4
-    return max(1, min(10, round(base - penalty)))
+    raw_penalty = (high * 2 + medium * 1 + low * 0.5) / 16
+    penalty = min(raw_penalty * 2.5, 2.5)
+
+    final_score = base_score - penalty
+    final_score = max(5.0, min(10.0, final_score))
+    return round(final_score, 1)
 
 
 def audit_lecture(segments: list[dict], outline: list[dict]) -> dict:
