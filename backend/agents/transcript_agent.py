@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -14,7 +15,12 @@ from youtube_transcript_api._errors import (
 
 logger = logging.getLogger(__name__)
 
-_api = YouTubeTranscriptApi()
+
+def _make_api() -> YouTubeTranscriptApi:
+    proxy_url = os.getenv("PROXY_URL")
+    if proxy_url:
+        return YouTubeTranscriptApi(proxies={"http": proxy_url, "https": proxy_url})
+    return YouTubeTranscriptApi()
 
 SEGMENT_DURATION = 120  # seconds
 _CACHE_DIR = Path(__file__).parent.parent / "cache"
@@ -88,7 +94,7 @@ _NO_CAPTIONS_MSG = "This video's captions are not available. Please try a video 
 
 def fetch_transcript_via_youtube_api(video_id: str) -> dict:
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript_list = _make_api().list_transcripts(video_id)
     except Exception as e:
         logger.debug("list_transcripts failed for %s: %s", video_id, e)
         return {"error": "no_captions", "message": _NO_CAPTIONS_MSG}
@@ -165,7 +171,7 @@ def fetch_and_segment(youtube_url: str, use_cache: bool = True) -> dict:
 
     for attempt in range(2):
         try:
-            fetched = _api.fetch(video_id)
+            fetched = _make_api().fetch(video_id)
             entries = fetched.to_raw_data()
             logger.info("Fetched transcript via youtube-transcript-api (attempt %d)", attempt + 1)
             break
