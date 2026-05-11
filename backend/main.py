@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agents.orchestrator import process_lecture, process_lecture_stream
+from agents.orchestrator import process_lecture, process_lecture_stream, process_curriculum_stream
 from agents.study_agent import semantic_search
 from llm_client import generate
 
@@ -36,6 +36,11 @@ class TranslateRequest(BaseModel):
     language: str
 
 
+class CurriculumRequest(BaseModel):
+    urls: list[str]
+    learning_objectives: str
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -50,6 +55,15 @@ def process(req: ProcessRequest):
 def stream(url: str = Query(...), mode: str = Query("student")):
     def sse_generator():
         for line in process_lecture_stream(url, mode=mode):
+            yield f"data: {line}\n\n"
+
+    return StreamingResponse(sse_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/curriculum/stream")
+def curriculum_stream(req: CurriculumRequest):
+    def sse_generator():
+        for line in process_curriculum_stream(req.urls, req.learning_objectives):
             yield f"data: {line}\n\n"
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")

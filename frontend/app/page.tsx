@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ParticleCanvas from "@/components/ParticleCanvas";
 
-type Mode = "student" | "faculty";
+type Mode = "student" | "faculty" | "provost";
 
 const FEATURES = [
   {
@@ -29,14 +29,33 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<Mode>("student");
   const [error, setError] = useState("");
+  const [provostUrls, setProvostUrls] = useState(["", "", ""]);
+  const [objectives, setObjectives] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+
+    if (mode === "provost") {
+      const filled = provostUrls.map((u) => u.trim()).filter(Boolean);
+      if (filled.length === 0) {
+        setError("Enter at least one YouTube URL.");
+        return;
+      }
+      if (!objectives.trim()) {
+        setError("Enter learning objectives.");
+        return;
+      }
+      localStorage.setItem("provostUrls", JSON.stringify(filled));
+      localStorage.setItem("provostObjectives", objectives.trim());
+      router.push("/provost");
+      return;
+    }
+
     if (!url.trim()) {
       setError("Please enter a YouTube URL.");
       return;
     }
-    setError("");
     localStorage.setItem("lectureUrl", url.trim());
     localStorage.setItem("lectureMode", mode);
     router.push(`/study?url=${encodeURIComponent(url.trim())}&mode=${mode}`);
@@ -70,7 +89,7 @@ export default function Home() {
               Turn any lecture into a complete study environment
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              {["⚡ 5 AI Agents", "🌍 6 Languages", "🎓 Student + Faculty"].map((badge) => (
+              {["⚡ 5 AI Agents", "🌍 6 Languages", "🎓 Student + Faculty + Provost"].map((badge) => (
                 <span
                   key={badge}
                   className="px-3 py-1 rounded-full text-xs font-medium bg-zinc-900 border border-zinc-700 text-zinc-400"
@@ -82,27 +101,13 @@ export default function Home() {
           </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                if (error) setError("");
-              }}
-              placeholder="Paste a YouTube URL..."
-              className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-4 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-            />
-
-            {error && (
-              <p className="text-red-400 text-sm px-1">{error}</p>
-            )}
-
+            {/* Mode selector */}
             <div className="flex gap-2">
-              {(["student", "faculty"] as Mode[]).map((m) => (
+              {(["student", "faculty", "provost"] as Mode[]).map((m) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setMode(m)}
+                  onClick={() => { setMode(m); setError(""); }}
                   className={`flex-1 py-3 rounded-xl text-sm font-medium capitalize transition-colors ${
                     mode === m
                       ? "bg-white text-black"
@@ -114,11 +119,55 @@ export default function Home() {
               ))}
             </div>
 
+            {mode !== "provost" ? (
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="Paste a YouTube URL..."
+                className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-4 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              />
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold">Lecture URLs (up to 3)</p>
+                {provostUrls.map((u, i) => (
+                  <input
+                    key={i}
+                    type="text"
+                    value={u}
+                    onChange={(e) => {
+                      const next = [...provostUrls];
+                      next[i] = e.target.value;
+                      setProvostUrls(next);
+                      if (error) setError("");
+                    }}
+                    placeholder={`YouTube URL ${i + 1}${i === 0 ? " (required)" : " (optional)"}`}
+                    className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  />
+                ))}
+                <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold mt-1">Learning Objectives</p>
+                <textarea
+                  value={objectives}
+                  onChange={(e) => { setObjectives(e.target.value); if (error) setError(""); }}
+                  placeholder={"List your course learning objectives, one per line or as a paragraph..."}
+                  rows={4}
+                  className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+                />
+              </div>
+            )}
+
+            {error && (
+              <p className="text-red-400 text-sm px-1">{error}</p>
+            )}
+
             <button
               type="submit"
               className="w-full py-4 rounded-xl bg-indigo-600 text-white font-semibold text-base hover:bg-indigo-500 hover:scale-105 active:scale-100 transition-all"
             >
-              Analyze Lecture
+              {mode === "provost" ? "Map Curriculum" : "Analyze Lecture"}
             </button>
           </form>
 
