@@ -111,3 +111,9 @@ def translate(req: TranslateRequest):
         "summaries": translated.get("summaries", content.get("summaries")),
         "flashcards": translated.get("flashcards", content.get("flashcards")),
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
