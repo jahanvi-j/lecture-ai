@@ -1,8 +1,8 @@
 # LectureAI
 
-**Turn any lecture into a complete study environment.**
+**Turn any lecture into a complete study environment. Student • Faculty • Provost**
 
-Paste a YouTube lecture URL and LectureAI produces a full set of study materials in under a minute — structured outline, multi-depth summaries, flashcards, semantic search, and a bilingual interface. Professors get a private pedagogical audit that pinpoints exactly what to improve before publishing.
+Paste a YouTube lecture URL and LectureAI produces a full set of study materials in under a minute — structured outline, multi-depth summaries, flashcards, semantic search, and a bilingual interface. Professors get a private pedagogical audit that pinpoints exactly what to improve before publishing. Provosts and curriculum designers can map multiple lectures against course objectives to see exactly what is and isn't covered.
 
 ---
 
@@ -29,6 +29,14 @@ LectureAI processes any YouTube lecture through a five-agent pipeline and return
 - **Pedagogical effectiveness scoring** — logical flow score, student engagement score, and detection of stated learning objectives
 - **Priority fix** — one specific improvement with a reason, a timestamp, and a suggested rewrite; the single thing to change before publishing
 
+### Capability 3 — Provost Mode
+
+- Paste up to three YouTube lecture URLs from the same course
+- Add course learning objectives (free-form text)
+- Get a curriculum coverage map showing which objectives each lecture addresses
+- Color-coded status per objective: fully covered / partially covered / missing
+- Evidence excerpts with video references and timestamps for each mapped objective
+
 ---
 
 ## Architecture
@@ -41,7 +49,19 @@ Five-agent multi-agent system with real-time streaming progress:
 | **Content Intelligence Agent** | Produces a timestamped outline, three-depth summaries, and 5–10 key concepts |
 | **Study Materials Agent** | Generates flashcards and builds a dense embedding index for semantic search |
 | **Faculty Audit Agent** | Runs four LLM passes — clarity audit, accessibility audit, pedagogical assessment, and priority fix synthesis |
-| **Orchestrator** | Coordinates all agents in sequence, streams live progress events to the frontend via Server-Sent Events |
+| **Provost Agent** | Parses course learning objectives into structured form, then maps each objective to coverage status (full / partial / missing) across all provided lecture transcripts |
+| **Orchestrator** | Coordinates all agents, routes Student / Faculty / Provost modes, and streams live progress events to the frontend via Server-Sent Events |
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/stream?url=&mode=` | Student / Faculty streaming analysis via SSE |
+| `POST` | `/api/curriculum/stream` | Provost curriculum mapping via SSE |
+| `POST` | `/api/search` | Semantic search over a lecture's embedding index |
+| `POST` | `/api/translate` | Translate outline, summaries, and flashcards to a target language |
 
 ---
 
