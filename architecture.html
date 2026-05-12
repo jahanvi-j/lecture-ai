@@ -62,6 +62,7 @@
   .agent-box:nth-child(2) { animation-delay: 1.0s; }
   .agent-box:nth-child(3) { animation-delay: 1.2s; }
   .agent-box:nth-child(4) { animation-delay: 1.4s; }
+  .agent-box:nth-child(5) { animation-delay: 1.6s; }
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -207,7 +208,7 @@
     <rect x="340" y="332" width="520" height="84" rx="12" fill="url(#backendGrad)" opacity="0.9"/>
     <rect x="340" y="332" width="520" height="84" rx="12" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
     <text x="600" y="362" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9">⚡  FastAPI Backend on Railway</text>
-    <text x="600" y="386" text-anchor="middle" font-size="12.5" fill="#ddd6fe">/api/stream  •  /api/search  •  /api/translate  •  /api/curriculum</text>
+    <text x="600" y="386" text-anchor="middle" font-size="12.5" fill="#ddd6fe">/api/stream  •  /api/search  •  /api/translate  •  /api/curriculum/stream</text>
     <text x="600" y="404" text-anchor="middle" font-size="11" fill="#c4b5fd" opacity="0.8">Server-Sent Events • Async Python • CORS enabled</text>
   </g>
 
@@ -238,93 +239,110 @@
   </g>
 
   <!-- ═══════════════════════════════════════
-       Fan-out arrows: Orchestrator → 4 Agents
+       Fan-out arrows: Orchestrator → 5 Agents
+       Agent centers: 185, 370, 555, 740, 925
   ══════════════════════════════════════════ -->
-  <!-- Agent centers: 165, 390, 615, 840 (x), y=660 top -->
-  <!-- Arrow from orch bottom center 600,552 fan to each agent top center -->
 
-  <!-- to Transcript (165) -->
+  <!-- to Transcript (185) -->
   <g>
-    <path class="draw-line arr-delay-1" d="M 600 552 Q 600 590 165 622"
+    <path class="draw-line arr-delay-1" d="M 600 552 Q 580 592 185 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
-    <path class="flow-arrow-slow" d="M 600 552 Q 600 590 165 622"
+    <path class="flow-arrow-slow" d="M 600 552 Q 580 592 185 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
   </g>
-  <!-- to Content (390) -->
+  <!-- to Content (370) -->
   <g>
-    <path class="draw-line arr-delay-2" d="M 600 552 Q 580 590 390 622"
+    <path class="draw-line arr-delay-2" d="M 600 552 Q 586 590 370 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
-    <path class="flow-arrow-slow" d="M 600 552 Q 580 590 390 622"
+    <path class="flow-arrow-slow" d="M 600 552 Q 586 590 370 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
   </g>
-  <!-- to Study (615) -->
+  <!-- to Study (555) -->
   <g>
-    <path class="draw-line arr-delay-3" d="M 600 552 Q 610 590 618 622"
+    <path class="draw-line arr-delay-3" d="M 600 552 Q 594 590 555 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
-    <path class="flow-arrow-slow" d="M 600 552 Q 610 590 618 622"
+    <path class="flow-arrow-slow" d="M 600 552 Q 594 590 555 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
   </g>
-  <!-- to Faculty (843) -->
+  <!-- to Faculty (740) -->
   <g>
-    <path class="draw-line arr-delay-4" d="M 600 552 Q 620 590 843 622"
+    <path class="draw-line arr-delay-4" d="M 600 552 Q 614 590 740 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
-    <path class="flow-arrow-slow" d="M 600 552 Q 620 590 843 622"
+    <path class="flow-arrow-slow" d="M 600 552 Q 614 590 740 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
+  </g>
+  <!-- to Provost (925) -->
+  <g>
+    <path class="draw-line arr-delay-4" d="M 600 552 Q 624 592 925 622"
+      fill="none" stroke="#818cf8" stroke-width="1.8" marker-end="url(#arrowIndigo)" opacity="0.75"/>
+    <path class="flow-arrow-slow" d="M 600 552 Q 624 592 925 622"
       fill="none" stroke="#818cf8" stroke-width="1.8" opacity="0.4"/>
   </g>
 
   <!-- ═══════════════════════════════════════
-       ROW 5: 4 Agent Boxes
-       x centers: 165, 390, 618, 843
-       width: 210, top: 624, height: 128
+       ROW 5: 5 Agent Boxes
+       centers: 185, 370, 555, 740, 925
+       width: 165, top: 624, height: 130
   ══════════════════════════════════════════ -->
   <g>
-    <!-- Transcript Agent -->
+    <!-- Transcript Agent (x=103, center=185) -->
     <g class="agent-box">
-      <rect x="60" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
-      <rect x="60" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
-      <text x="165" y="652" text-anchor="middle" font-size="16">📝</text>
-      <text x="165" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Transcript Agent</text>
-      <text x="165" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Fetches YouTube transcripts</text>
-      <text x="165" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Segments into 2-min chunks</text>
-      <text x="165" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Caches results</text>
-      <rect x="70" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+      <rect x="103" y="624" width="165" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="103" y="624" width="165" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="185" y="650" text-anchor="middle" font-size="15">📝</text>
+      <text x="185" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9">Transcript Agent</text>
+      <text x="185" y="691" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Fetches transcripts</text>
+      <text x="185" y="708" text-anchor="middle" font-size="10.5" fill="#c7d2fe">2-min segments</text>
+      <text x="185" y="725" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Caches results</text>
+      <rect x="113" y="742" width="145" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
     </g>
 
-    <!-- Content Agent -->
+    <!-- Content Agent (x=288, center=370) -->
     <g class="agent-box">
-      <rect x="285" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
-      <rect x="285" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
-      <text x="390" y="652" text-anchor="middle" font-size="16">🧠</text>
-      <text x="390" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Content Agent</text>
-      <text x="390" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Builds structured outline</text>
-      <text x="390" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">3-depth summaries</text>
-      <text x="390" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Extracts key concepts</text>
-      <rect x="295" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+      <rect x="288" y="624" width="165" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="288" y="624" width="165" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="370" y="650" text-anchor="middle" font-size="15">🧠</text>
+      <text x="370" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9">Content Agent</text>
+      <text x="370" y="691" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Structured outline</text>
+      <text x="370" y="708" text-anchor="middle" font-size="10.5" fill="#c7d2fe">3-depth summaries</text>
+      <text x="370" y="725" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Key concepts</text>
+      <rect x="298" y="742" width="145" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
     </g>
 
-    <!-- Study Agent -->
+    <!-- Study Agent (x=473, center=555) -->
     <g class="agent-box">
-      <rect x="513" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
-      <rect x="513" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
-      <text x="618" y="652" text-anchor="middle" font-size="16">🃏</text>
-      <text x="618" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Study Agent</text>
-      <text x="618" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Generates flashcards</text>
-      <text x="618" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Embeds for semantic search</text>
-      <text x="618" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Cosine similarity search</text>
-      <rect x="523" y="742" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+      <rect x="473" y="624" width="165" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="473" y="624" width="165" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="555" y="650" text-anchor="middle" font-size="15">🃏</text>
+      <text x="555" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9">Study Agent</text>
+      <text x="555" y="691" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Generates flashcards</text>
+      <text x="555" y="708" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Semantic embeddings</text>
+      <text x="555" y="725" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Cosine search</text>
+      <rect x="483" y="742" width="145" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
     </g>
 
-    <!-- Faculty Agent -->
+    <!-- Faculty Agent (x=658, center=740) -->
     <g class="agent-box">
-      <rect x="738" y="624" width="210" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
-      <rect x="738" y="624" width="210" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
-      <text x="843" y="652" text-anchor="middle" font-size="16">🎓</text>
-      <text x="843" y="673" text-anchor="middle" font-size="13" font-weight="700" fill="#f1f5f9">Faculty Agent</text>
-      <text x="843" y="695" text-anchor="middle" font-size="11" fill="#c7d2fe">Clarity &amp; pacing audit</text>
-      <text x="843" y="712" text-anchor="middle" font-size="11" fill="#c7d2fe">Accessibility analysis</text>
-      <text x="843" y="729" text-anchor="middle" font-size="11" fill="#c7d2fe">Priority fix report</text>
-      <text x="843" y="746" text-anchor="middle" font-size="10.5" fill="#a5b4fc" font-style="italic">Provost: curriculum mapping</text>
-      <rect x="748" y="757" width="190" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+      <rect x="658" y="624" width="165" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="658" y="624" width="165" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="740" y="650" text-anchor="middle" font-size="15">🎓</text>
+      <text x="740" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9">Faculty Agent</text>
+      <text x="740" y="691" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Clarity &amp; pacing audit</text>
+      <text x="740" y="708" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Accessibility analysis</text>
+      <text x="740" y="725" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Priority fix report</text>
+      <rect x="668" y="742" width="145" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
+    </g>
+
+    <!-- Provost Agent (x=843, center=925) -->
+    <g class="agent-box">
+      <rect x="843" y="624" width="165" height="130" rx="12" fill="url(#agentGrad)" opacity="0.92"/>
+      <rect x="843" y="624" width="165" height="130" rx="12" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="925" y="650" text-anchor="middle" font-size="15">🏛️</text>
+      <text x="925" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9">Provost Agent</text>
+      <text x="925" y="691" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Extract objectives</text>
+      <text x="925" y="708" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Curriculum mapping</text>
+      <text x="925" y="725" text-anchor="middle" font-size="10.5" fill="#c7d2fe">Coverage analysis</text>
+      <rect x="853" y="742" width="145" height="4" rx="2" fill="#4338ca" opacity="0.5"/>
     </g>
   </g>
 
@@ -334,30 +352,36 @@
        Services top y=826
   ══════════════════════════════════════════ -->
 
-  <!-- Content/Study/Faculty → Gemini -->
+  <!-- Agents → Services (updated centers) -->
   <g>
-    <!-- Transcript → YouTube (sole user of YouTube) -->
-    <path class="draw-line arr-delay-1" d="M 165 754 Q 165 800 850 826"
+    <!-- Transcript → Proxy/YouTube -->
+    <path class="draw-line arr-delay-1" d="M 185 754 Q 185 800 850 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
-    <path class="flow-arrow-slow" d="M 165 754 Q 165 800 850 826"
+    <path class="flow-arrow-slow" d="M 185 754 Q 185 800 850 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
 
     <!-- Content → Gemini -->
-    <path class="draw-line arr-delay-2" d="M 390 754 Q 390 800 350 826"
+    <path class="draw-line arr-delay-2" d="M 370 754 Q 370 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
-    <path class="flow-arrow-slow" d="M 390 754 Q 390 800 350 826"
+    <path class="flow-arrow-slow" d="M 370 754 Q 370 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
 
     <!-- Study → Gemini -->
-    <path class="draw-line arr-delay-3" d="M 618 754 Q 618 800 350 826"
+    <path class="draw-line arr-delay-3" d="M 555 754 Q 540 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
-    <path class="flow-arrow-slow" d="M 618 754 Q 618 800 350 826"
+    <path class="flow-arrow-slow" d="M 555 754 Q 540 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
 
     <!-- Faculty → Gemini -->
-    <path class="draw-line arr-delay-4" d="M 843 754 Q 843 800 350 826"
+    <path class="draw-line arr-delay-4" d="M 740 754 Q 650 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
-    <path class="flow-arrow-slow" d="M 843 754 Q 843 800 350 826"
+    <path class="flow-arrow-slow" d="M 740 754 Q 650 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Provost → Gemini -->
+    <path class="draw-line arr-delay-4" d="M 925 754 Q 800 800 350 826"
+      fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)" opacity="0.6"/>
+    <path class="flow-arrow-slow" d="M 925 754 Q 800 800 350 826"
       fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="0.3"/>
   </g>
 
@@ -380,9 +404,9 @@
       <rect x="620" y="828" width="460" height="96" rx="12" fill="#1e293b" opacity="0.95"/>
       <rect x="620" y="828" width="460" height="96" rx="12" fill="none" stroke="#374151" stroke-width="1.5"/>
       <text x="850" y="858" text-anchor="middle" font-size="17">📺</text>
-      <text x="850" y="878" text-anchor="middle" font-size="14" font-weight="700" fill="#e2e8f0">YouTube Data API + ScraperAPI</text>
-      <text x="850" y="898" text-anchor="middle" font-size="12" fill="#94a3b8">Transcript fetching</text>
-      <text x="850" y="914" text-anchor="middle" font-size="12" fill="#94a3b8">Proxy for IP bypass</text>
+      <text x="850" y="878" text-anchor="middle" font-size="14" font-weight="700" fill="#e2e8f0">youtube-transcript-api + Proxy</text>
+      <text x="850" y="898" text-anchor="middle" font-size="12" fill="#94a3b8">Transcript fetching (Python lib)</text>
+      <text x="850" y="914" text-anchor="middle" font-size="12" fill="#94a3b8">GenericProxyConfig for IP bypass</text>
     </g>
   </g>
 

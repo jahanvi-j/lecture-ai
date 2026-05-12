@@ -161,22 +161,42 @@ export default function Home() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold">Lecture URLs (up to 3)</p>
+                <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold">Lecture URLs (up to 10)</p>
                 {provostUrls.map((u, i) => (
-                  <input
-                    key={i}
-                    type="text"
-                    value={u}
-                    onChange={(e) => {
-                      const next = [...provostUrls];
-                      next[i] = e.target.value;
-                      setProvostUrls(next);
-                      if (error) setError("");
-                    }}
-                    placeholder={`YouTube URL ${i + 1}${i === 0 ? " (required)" : " (optional)"}`}
-                    className="w-full rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  />
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={u}
+                      onChange={(e) => {
+                        const next = [...provostUrls];
+                        next[i] = e.target.value;
+                        setProvostUrls(next);
+                        if (error) setError("");
+                      }}
+                      placeholder={`Paste YouTube lecture URL ${i + 1}`}
+                      className="flex-1 rounded-xl bg-[#1a1a1a] border border-zinc-800 text-white placeholder-zinc-600 px-5 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    />
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setProvostUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors text-base leading-none"
+                        aria-label="Remove URL"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 ))}
+                {provostUrls.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => setProvostUrls((prev) => [...prev, ""])}
+                    className="self-start text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                  >
+                    + Add Another Video
+                  </button>
+                )}
                 <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold mt-1">Learning Objectives</p>
                 <textarea
                   value={objectives}
