@@ -178,14 +178,14 @@ function OutlineTab({
       {outline.map((item, i) => (
         <div
           key={i}
-          className="flex items-start gap-3 p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800 hover:border-zinc-700 transition-colors"
+          className="flex items-start gap-3 p-3 rounded-xl bg-[#1a1a1a] border border-zinc-800 hover:border-zinc-700 transition-colors"
         >
           <TimestampPill seconds={item.start_time} onSeek={onSeek} />
           <div className="min-w-0">
-            <p className="text-white font-medium text-lg leading-snug">
+            <p className="text-white font-medium text-base leading-snug">
               {item.title}
             </p>
-            <p className="text-zinc-500 text-base mt-1 leading-relaxed">
+            <p className="text-zinc-500 text-sm mt-1 leading-relaxed">
               {item.summary_1_sentence}
             </p>
           </div>
@@ -223,7 +223,7 @@ function SummariesTab({ summaries }: { summaries: Summaries }) {
         ))}
       </div>
       <div className="p-4 rounded-xl bg-[#1a1a1a] border border-zinc-800">
-        <p className="text-zinc-300 text-base leading-relaxed whitespace-pre-wrap">
+        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
           {summaries[depth]}
         </p>
       </div>
@@ -280,7 +280,7 @@ function FlashcardsTab({
           {/* Front */}
           <div className={`flip-card-front p-6 rounded-xl bg-[#1a1a1a] border-2 ${difficultyBorder[card.difficulty] ?? difficultyBorder.medium} flex flex-col justify-between`}>
             <div className="flex items-start justify-between gap-3">
-              <p className="text-white text-lg font-medium leading-relaxed">
+              <p className="text-white text-base font-medium leading-relaxed">
                 {card.front}
               </p>
               <span
@@ -400,7 +400,7 @@ function SearchTab({
                   Score: {(r.score * 100).toFixed(1)}%
                 </span>
               </div>
-              <p className="text-zinc-300 text-base leading-relaxed line-clamp-3">
+              <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">
                 {r.text}
               </p>
               <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
@@ -632,7 +632,7 @@ function ResultsView({
                 key={key}
                 onClick={() => setTab(key)}
                 title={label}
-                className={`px-6 py-3 text-base font-medium transition-colors relative flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
                   tab === key
                     ? "text-white"
                     : "text-zinc-500 hover:text-zinc-300"
