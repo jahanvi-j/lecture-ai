@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ParticleCanvas from "@/components/ParticleCanvas";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /* ── Logo SVG (same as other pages) ── */
 function Logo({ size = 24 }: { size?: number }) {

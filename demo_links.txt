@@ -1,0 +1,15 @@
+=== CAPABILITY 1 & 2 - Student/Faculty Demo ===
+https://www.youtube.com/watch?v=kCc8FmEb1nY
+
+=== CAPABILITY 3 - Provost Demo (4 videos) ===
+https://www.youtube.com/watch?v=aircAruvnKk
+https://www.youtube.com/watch?v=IHZwWFHWa-w
+https://www.youtube.com/watch?v=Ilg3gGewQ5U
+https://www.youtube.com/watch?v=tIeHLnjs5U8
+
+=== LEARNING OBJECTIVES FOR PROVOST ===
+1. Understand what neural networks are and how they work
+2. Explain the role of weights and biases in learning
+3. Describe gradient descent and backpropagation
+4. Understand activation functions
+5. Apply neural networks to real classification problems
