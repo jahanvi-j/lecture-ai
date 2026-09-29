@@ -84,7 +84,15 @@ Five-agent multi-agent system with real-time streaming progress:
 | | URL |
 |---|---|
 | App | https://lecture-ai-six.vercel.app |
-| Backend | https://lecture-ai-production-dc0c.up.railway.app |
+| Backend | https://lecture-ai-backend.onrender.com |
+
+---
+
+## Deploying the backend (Render)
+
+`render.yaml` defines the backend as a free Render web service. In Render: **New → Blueprint**, pick this repo, and fill in `GEMINI_API_KEY` (and `PROXY_URL` if YouTube blocks transcript requests from Render's IPs). Then set `NEXT_PUBLIC_API_URL` in Vercel to the Render URL and redeploy the frontend.
+
+The free plan sleeps after ~15 min of inactivity, so the first request after idle takes ~1 minute.
 
 ---
 
