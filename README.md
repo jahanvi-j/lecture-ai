@@ -84,7 +84,7 @@ Five-agent multi-agent system with real-time streaming progress:
 | | URL |
 |---|---|
 | App | https://lecture-ai-six.vercel.app |
-| Backend | https://lecture-ai-backend.onrender.com |
+| Backend | https://lecture-ai-backend-uk32.onrender.com |
 
 ---
 
@@ -113,7 +113,7 @@ Create `backend/.env`:
 
 ```env
 GEMINI_API_KEY=your_key_here
-YOUTUBE_API_KEY=your_key_here   # optional — only needed for IP-block fallback
+PROXY_URL=http://user:pass@host:port   # optional — proxy for YouTube transcript requests
 ```
 
 ```bash
