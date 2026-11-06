@@ -5,3 +5,4 @@ google-genai
 numpy
 python-dotenv
 httpx
+langgraph>=1.0,<2
