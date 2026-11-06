@@ -50,7 +50,27 @@ Five-agent multi-agent system with real-time streaming progress:
 | **Study Materials Agent** | Generates flashcards and builds a dense embedding index for semantic search |
 | **Faculty Audit Agent** | Runs four LLM passes — clarity audit, accessibility audit, pedagogical assessment, and priority fix synthesis |
 | **Provost Agent** | Parses course learning objectives into structured form, then maps each objective to coverage status (full / partial / missing) across all provided lecture transcripts |
-| **Orchestrator** | Coordinates all agents, routes Student / Faculty / Provost modes, and streams live progress events to the frontend via Server-Sent Events |
+| **Orchestrator** | Two LangGraph `StateGraph`s (lecture and curriculum) that route Student / Faculty / Provost modes, run independent agents in parallel, and stream live progress events to the frontend via Server-Sent Events |
+
+### Orchestration graph
+
+Agents are nodes in a LangGraph `StateGraph` (`backend/agents/orchestrator.py`). Each node reads what it needs from shared state and writes its output back. Progress events are emitted from inside nodes with LangGraph's custom stream writer and forwarded to the frontend as SSE.
+
+```
+Lecture (Student / Faculty)
+  START → Transcript ─┬─ error ───────────────────────────→ END
+                      ├─→ Content ─┬─→ Flashcards ─────────→ END
+                      │            └─→ Faculty Audit* ─────→ END
+                      └─→ Search Index ────────────────────→ END
+  * faculty mode only
+
+Curriculum (Provost)
+  START ─┬─→ Transcripts (all videos) ─┬─→ Coverage Map → END
+         └─→ Objective Extraction ─────┘
+```
+
+- **Conditional routing:** a failed transcript fetch ends the run with an error event, and the Faculty Audit node is added only in faculty mode.
+- **Parallel branches:** the search index only needs the transcript, so it runs alongside the Content Agent. Flashcards and the faculty audit both wait on the outline and then run together. Objective extraction runs while the transcripts are being fetched.
 
 ---
 
@@ -71,6 +91,7 @@ Five-agent multi-agent system with real-time streaming progress:
 |---|---|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS |
 | Backend | FastAPI, Python |
+| Orchestration | LangGraph |
 | LLM | Google Gemini 1.5 Flash |
 | Embeddings | Gemini `text-embedding-004` |
 | Transcript | `youtube-transcript-api` + YouTube Data API v3 fallback |
